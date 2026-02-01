@@ -1,0 +1,297 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>LeadUp • CRM</title>
+  <link rel="stylesheet" href="./app.css" />
+</head>
+<body>
+  <div id="app" class="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="logo">LU</div>
+        <div class="brandText">
+          <div class="name">LeadUp</div>
+          <div class="sub">Premium CRM</div>
+        </div>
+      </div>
+
+      <nav class="nav">
+        <button class="navItem active" data-view="clients">
+          <span class="navIcon">👥</span>
+          <span>הלקוחות שלי</span>
+        </button>
+        <button class="navItem" data-view="tasks">
+          <span class="navIcon">✅</span>
+          <span>משימות</span>
+        </button>
+        <button class="navItem" data-view="docs">
+          <span class="navIcon">🧾</span>
+          <span>מסמכים</span>
+        </button>
+      </nav>
+
+      <div class="sidebarFooter">
+        <button id="btnSettings" class="ghost">⚙️ הגדרות</button>
+        <div class="syncBadge" id="syncBadge" title="מצב סנכרון">
+          <span class="dot"></span>
+          <span id="syncText">Local</span>
+        </div>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div class="topbarLeft">
+          <div class="pageTitle" id="pageTitle">הלקוחות שלי</div>
+          <div class="pageHint" id="pageHint">תמונת מצב מלאה לכל לקוח • ביטוחים • פרמיות • מסמכים</div>
+        </div>
+
+        <div class="topbarRight">
+          <div class="searchWrap">
+            <input id="qSearch" class="search" placeholder="חיפוש לקוח מהיר (שם / טלפון / ת״ז)" autocomplete="off" />
+            <div class="searchIcon">⌕</div>
+          </div>
+
+          <button id="btnNewClient" class="primary">＋ הקמת לקוח חדש</button>
+        </div>
+      </header>
+
+      <section class="content">
+        <!-- Views -->
+        <div id="viewClients" class="view"></div>
+        <div id="viewClientFile" class="view hidden"></div>
+        <div id="viewTasks" class="view hidden"></div>
+        <div id="viewDocs" class="view hidden"></div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast" class="toast hidden"></div>
+
+  <!-- Modal: New Client -->
+  <div id="modalNewClient" class="modal hidden" aria-hidden="true">
+    <div class="modalBackdrop" data-close="modalNewClient"></div>
+    <div class="modalCard" role="dialog" aria-modal="true" aria-labelledby="newClientTitle">
+      <div class="modalHeader">
+        <div class="modalTitle" id="newClientTitle">הקמת לקוח חדש</div>
+        <button class="x" data-close="modalNewClient">✕</button>
+      </div>
+
+      <form id="formNewClient" class="form">
+        <div class="grid">
+          <label class="field">
+            <span>שם פרטי *</span>
+            <input name="firstName" required />
+          </label>
+          <label class="field">
+            <span>שם משפחה *</span>
+            <input name="lastName" required />
+          </label>
+          <label class="field">
+            <span>טלפון *</span>
+            <input name="phone" inputmode="tel" placeholder="05XXXXXXXX" required />
+          </label>
+          <label class="field">
+            <span>טלפון נוסף</span>
+            <input name="phone2" inputmode="tel" placeholder="05XXXXXXXX" />
+          </label>
+          <label class="field">
+            <span>ת״ז *</span>
+            <input name="nationalId" inputmode="numeric" placeholder="9 ספרות" required />
+          </label>
+          <label class="field">
+            <span>אימייל</span>
+            <input name="email" inputmode="email" placeholder="name@email.com" />
+          </label>
+          <label class="field">
+            <span>כתובת</span>
+            <input name="address" placeholder="עיר, רחוב, מספר" />
+          </label>
+          <label class="field">
+            <span>תאריך לידה</span>
+            <input name="birthDate" type="date" />
+          </label>
+          <label class="field">
+            <span>מקור שיחה</span>
+            <select name="source">
+              <option value="">—</option>
+              <option>פייסבוק</option>
+              <option>גוגל</option>
+              <option>הפניה</option>
+              <option>טלמרקטינג</option>
+              <option>אחר</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>סטטוס</span>
+            <select name="status">
+              <option>ליד</option>
+              <option selected>לקוח פעיל</option>
+              <option>קפוא</option>
+              <option>ארכיון</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>נציג מטפל</span>
+            <select name="ownerAgentId" id="ownerAgentSelect"></select>
+          </label>
+          <label class="field span2">
+            <span>סיכום שיחה / הערות</span>
+            <textarea name="notes" rows="3" placeholder="כתוב כאן סיכום קצר…"></textarea>
+          </label>
+        </div>
+
+        <div class="modalFooter">
+          <button type="button" class="ghost" data-close="modalNewClient">ביטול</button>
+          <button type="submit" class="primary">שמירה</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Settings -->
+  <div id="modalSettings" class="modal hidden" aria-hidden="true">
+    <div class="modalBackdrop" data-close="modalSettings"></div>
+    <div class="modalCard" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+      <div class="modalHeader">
+        <div class="modalTitle" id="settingsTitle">הגדרות</div>
+        <button class="x" data-close="modalSettings">✕</button>
+      </div>
+
+      <div class="form">
+        <div class="grid">
+          <label class="field">
+            <span>מצב עבודה</span>
+            <select id="modeSelect">
+              <option value="local">Local</option>
+              <option value="gsheets">Google Sheets</option>
+            </select>
+          </label>
+          <label class="field span2">
+            <span>Web App URL (Apps Script)</span>
+            <input id="gsUrl" placeholder="https://script.google.com/macros/s/XXXX/exec" />
+            <div class="help">צריך Web App שמחזיר/שומר JSON (action=get / action=set).</div>
+          </label>
+        </div>
+
+        <div class="modalFooter">
+          <button class="ghost" data-close="modalSettings">סגור</button>
+          <button id="btnSaveSettings" class="primary">שמירה</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Edit Policies -->
+  <div id="modalPolicies" class="modal hidden" aria-hidden="true">
+    <div class="modalBackdrop" data-close="modalPolicies"></div>
+    <div class="modalCard wide" role="dialog" aria-modal="true" aria-labelledby="policiesTitle">
+      <div class="modalHeader">
+        <div class="modalTitle" id="policiesTitle">תיק ביטוחים</div>
+        <button class="x" data-close="modalPolicies">✕</button>
+      </div>
+
+      <div id="policiesEditor" class="policiesEditor"></div>
+
+      <div class="modalFooter">
+        <button class="ghost" data-close="modalPolicies">סגור</button>
+        <button id="btnAddPolicyRow" class="ghost">＋ הוסף ביטוח</button>
+        <button id="btnSavePolicies" class="primary">שמירה</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Add Timeline -->
+  <div id="modalTimeline" class="modal hidden" aria-hidden="true">
+    <div class="modalBackdrop" data-close="modalTimeline"></div>
+    <div class="modalCard" role="dialog" aria-modal="true" aria-labelledby="timelineTitle">
+      <div class="modalHeader">
+        <div class="modalTitle" id="timelineTitle">הוספת היסטוריה</div>
+        <button class="x" data-close="modalTimeline">✕</button>
+      </div>
+
+      <form id="formTimeline" class="form">
+        <div class="grid">
+          <label class="field">
+            <span>סוג</span>
+            <select name="type">
+              <option>שיחה</option>
+              <option>וואטסאפ</option>
+              <option>מייל</option>
+              <option>פגישה</option>
+              <option>הערה</option>
+            </select>
+          </label>
+          <label class="field span2">
+            <span>סיכום</span>
+            <textarea name="summary" rows="4" required placeholder="כתוב תיעוד קצר…"></textarea>
+          </label>
+        </div>
+        <div class="modalFooter">
+          <button type="button" class="ghost" data-close="modalTimeline">ביטול</button>
+          <button type="submit" class="primary">שמירה</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Add Doc -->
+  <div id="modalDoc" class="modal hidden" aria-hidden="true">
+    <div class="modalBackdrop" data-close="modalDoc"></div>
+    <div class="modalCard" role="dialog" aria-modal="true" aria-labelledby="docTitle">
+      <div class="modalHeader">
+        <div class="modalTitle" id="docTitle">הוספת מסמך</div>
+        <button class="x" data-close="modalDoc">✕</button>
+      </div>
+
+      <form id="formDoc" class="form">
+        <div class="grid">
+          <label class="field span2">
+            <span>שם מסמך *</span>
+            <input name="name" required placeholder="לדוגמה: הצעת ביטוח חיים" />
+          </label>
+          <label class="field span2">
+            <span>קישור למסמך (URL)</span>
+            <input name="url" placeholder="https://..." />
+            <div class="help">בשלב ראשון זה יכול להיות קישור ל־PDF/Google Drive. פתיחה תהיה בתוך המערכת (Iframe).</div>
+          </label>
+          <label class="field">
+            <span>סטטוס</span>
+            <select name="status">
+              <option>טיוטה</option>
+              <option>נשלח</option>
+              <option>נחתם</option>
+            </select>
+          </label>
+        </div>
+        <div class="modalFooter">
+          <button type="button" class="ghost" data-close="modalDoc">ביטול</button>
+          <button type="submit" class="primary">שמירה</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Doc Viewer -->
+  <div id="modalViewer" class="modal hidden" aria-hidden="true">
+    <div class="modalBackdrop" data-close="modalViewer"></div>
+    <div class="modalCard wide" role="dialog" aria-modal="true" aria-labelledby="viewerTitle">
+      <div class="modalHeader">
+        <div class="modalTitle" id="viewerTitle">תצוגת מסמך</div>
+        <button class="x" data-close="modalViewer">✕</button>
+      </div>
+      <div class="viewerBody">
+        <iframe id="viewerFrame" title="Document Viewer"></iframe>
+      </div>
+      <div class="modalFooter">
+        <button class="ghost" data-close="modalViewer">סגור</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="./app.js"></script>
+</body>
+</html>
