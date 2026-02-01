@@ -39,7 +39,27 @@
     }
   };
 
-  // ---------------------------
+  
+
+// ---------------------------
+// Fetch helpers (avoid CORS preflight + safer JSON parsing)
+// ---------------------------
+async function fetchJsonText_(url, opts){
+  const res = await fetch(url, Object.assign({
+    mode: "cors",
+    cache: "no-store",
+    redirect: "follow"
+  }, opts || {}));
+  const txt = await res.text();
+  let json;
+  try { json = JSON.parse(txt); }
+  catch(e){
+    return { ok:false, error:"Bad JSON from WebApp", raw: txt, status: res.status };
+  }
+  if (!res.ok) return { ok:false, error: json?.error || ("HTTP " + res.status), status: res.status, json };
+  return json;
+}
+// ---------------------------
   // Storage Layer (Local + Google Sheets)
   // ---------------------------
   const Storage = {
@@ -64,24 +84,54 @@
       return { ok: true, at: nowISO() };
     },
 
-    async loadSheets() {
+    
+async loadSheets() {
+  if (!this.gsUrl) return { ok: false, error: "אין כתובת Web App" };
+
+  const url = new URL(this.gsUrl);
+  url.searchParams.set("action", "get");
+
+  const json = await fetchJsonText_(url.toString(), { method: "GET" });
+  if (!json || json.ok !== true) return { ok: false, error: (json && (json.error || "שגיאת get")) || "שגיאת get" };
+
+  const payload = normalizeState(json.payload || {});
+  return { ok: true, payload, at: json.at || nowISO() };
+},
+
+async pingSheets() {
+  if (!this.gsUrl) return { ok: false, error: "אין כתובת Web App" };
+
+  const url = new URL(this.gsUrl);
+  url.searchParams.set("action", "ping");
+
+  const json = await fetchJsonText_(url.toString(), { method: "GET" });
+  if (!json || json.ok !== true) return { ok: false, error: (json && (json.error || "שגיאת ping")) || "שגיאת ping" };
+  return { ok: true };
+},
+
+async saveSheets(state) {
+  if (!this.gsUrl) return { ok: false, error: "אין כתובת Web App" };
+
+  // חשוב: כדי להימנע מ-CORS preflight (OPTIONS) מול Apps Script
+  // אנחנו שולחים POST עם Content-Type: text/plain
+  const url = new URL(this.gsUrl);
+  url.searchParams.set("action", "put");
+
+  const json = await fetchJsonText_(url.toString(), {
+    method: "POST",
+    headers: { "Content-Type": "text/plain;charset=utf-8" },
+    body: JSON.stringify({ payload: state })
+  });
+
+  if (!json || json.ok !== true) return { ok: false, error: (json && (json.error || "שגיאת put")) || "שגיאת put" };
+  return { ok: true, at: json.at || json.savedAt || nowISO() };
+},
+
+async load
+(state) {
       if (!this.gsUrl) return { ok: false, error: "אין כתובת Web App" };
 
-      const url = new URL(this.gsUrl);
-      url.searchParams.set("action", "get");
-
-      const res = await fetch(url.toString(), { method: "GET" });
-      const json = await res.json();
-
-      if (!json || json.ok !== true) return { ok: false, error: "שגיאת get" };
-
-      const payload = normalizeState(json.payload || {});
-      return { ok: true, payload, at: json.at || nowISO() };
-    },
-
-    async saveSheets(state) {
-      if (!this.gsUrl) return { ok: false, error: "אין כתובת Web App" };
-
+      // אנחנו שולחים POST עם JSON כדי לשמור ל-Sheet (action=put)
       const url = new URL(this.gsUrl);
       url.searchParams.set("action", "put");
 
@@ -114,7 +164,7 @@
       customers: Array.isArray(s?.customers) ? s.customers : [],
       activity: Array.isArray(s?.activity) ? s.activity : base.activity
     };
-
+    // normalize customer objects
     out.customers = out.customers.map((c) => ({
       id: safeTrim(c.id) || uid(),
       firstName: safeTrim(c.firstName),
@@ -253,7 +303,9 @@
     },
 
     goView(view) {
+      // set active button
       $$(".nav__item").forEach(b => b.classList.toggle("is-active", b.dataset.view === view));
+      // show view
       $$(".view").forEach(v => v.classList.remove("is-visible"));
       const el = $("#view-" + view);
       if (el) el.classList.add("is-visible");
@@ -271,6 +323,7 @@
       this.els.customerForm.reset();
       this.els.modalCustomer.classList.add("is-open");
       this.els.modalCustomer.setAttribute("aria-hidden", "false");
+      // focus first input
       setTimeout(() => this.els.customerForm.querySelector("input[name='firstName']").focus(), 50);
     },
 
@@ -290,6 +343,7 @@
       this.els.drawerId.textContent = c.idNumber || "—";
       this.els.drawerNotes.textContent = c.notes || "—";
 
+      // store "current"
       this.els.drawerCustomer.dataset.customerId = c.id;
 
       this.els.drawerCustomer.classList.add("is-open");
@@ -323,6 +377,7 @@
       const updatedAt = State.data.meta.updatedAt;
       this.els.kpiUpdated.textContent = updatedAt ? new Date(updatedAt).toLocaleString("he-IL") : "—";
 
+      // activity
       const items = (State.data.activity || []).slice(0, 6).map(ev => {
         const time = new Date(ev.at).toLocaleString("he-IL");
         return `
@@ -361,6 +416,7 @@
         <tr><td colspan="5" class="muted" style="padding:18px">אין לקוחות להצגה</td></tr>
       `;
 
+      // bind open buttons
       $$("button[data-open]", this.els.customersTbody).forEach(btn => {
         btn.addEventListener("click", () => this.openDrawer(btn.dataset.open));
       });
@@ -400,6 +456,7 @@
   // ---------------------------
   const App = {
     async boot() {
+      // restore settings
       Storage.gsUrl = localStorage.getItem("LEAD_CORE_GS_URL") || "";
       Storage.mode = localStorage.getItem("LEAD_CORE_MODE") || "local";
       UI.els.gsUrl.value = Storage.gsUrl;
@@ -407,10 +464,12 @@
       UI.els.modeLocal.classList.toggle("is-active", Storage.mode === "local");
       UI.els.modeSheets.classList.toggle("is-active", Storage.mode === "sheets");
 
+      // load
       const r = await Storage.load();
       if (r.ok) {
         State.set(r.payload);
       } else {
+        // fallback local
         State.set(Storage.loadLocal());
         State.data.activity.unshift({ at: nowISO(), text: "המערכת עלתה ב-Local (בעיה בחיבור ל-Sheets)." });
       }
@@ -423,8 +482,10 @@
       State.data.meta.updatedAt = nowISO();
       if (activityText) State.data.activity.unshift({ at: nowISO(), text: activityText });
 
+      // If drawer open, update from "current" (we keep it simple now; later we'll add editing fields)
       const currentId = UI.els.drawerCustomer.dataset.customerId;
       if (currentId) {
+        // keep updatedAt for the customer
         const c = State.data.customers.find(x => x.id === currentId);
         if (c) c.updatedAt = nowISO();
       }
@@ -446,11 +507,12 @@
 
       UI.renderSyncStatus();
 
+      // אופציונלי: כשעוברים ל-Sheets נטען מהענן ישר
       if (mode === "sheets") {
         const r = await Storage.loadSheets();
         if (r.ok) {
           State.set(r.payload);
-          await Storage.saveLocal(State.data);
+          await Storage.saveLocal(State.data); // backup local
           UI.renderAll();
           State.data.activity.unshift({ at: nowISO(), text: "נטען מ-Google Sheets" });
           UI.renderDashboard();
@@ -460,17 +522,22 @@
       }
     },
 
-    async testConnection() {
-      if (!Storage.gsUrl) return { ok: false, error: "אין URL" };
-      try {
-        const r = await Storage.loadSheets();
-        return r.ok ? { ok: true } : r;
-      } catch (e) {
-        return { ok: false, error: String(e?.message || e) };
-      }
-    },
+    
+async testConnection() {
+  if (!Storage.gsUrl) return { ok: false, error: "אין URL" };
+  try {
+    const r = await Storage.pingSheets();
+    return r.ok ? { ok: true } : r;
+  } catch (e) {
+    return { ok: false, error: String(e?.message || e) };
+  }
+},
 
-    async syncNow() {
+async syncNow() {
+() {
+      // Strategy:
+      // 1) Load from Sheets (if ok) -> set state
+      // 2) Save current state back (ensures schema)
       if (Storage.mode !== "sheets") return { ok: false, error: "עבור למצב Google Sheets קודם" };
       try {
         const r1 = await Storage.loadSheets();
@@ -480,7 +547,7 @@
         const r2 = await Storage.saveSheets(State.data);
         if (!r2.ok) return r2;
 
-        await Storage.saveLocal(State.data);
+        await Storage.saveLocal(State.data); // local backup
         UI.renderAll();
         return { ok: true };
       } catch (e) {
@@ -497,5 +564,6 @@
     await App.boot();
   });
 
+  // Expose a minimal namespace for debugging without polluting global scope too much
   window.LEAD_CORE = { App, State, Storage, UI };
 })();
