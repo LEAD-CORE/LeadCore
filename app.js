@@ -516,3 +516,4 @@
   // Expose a minimal namespace for debugging without polluting global scope too much
   window.LEAD_CORE = { App, State, Storage, UI };
 })();
+
