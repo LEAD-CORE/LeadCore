@@ -1,5 +1,5 @@
-/* LEAD CORE • Premium CRM
-   מבנה מודולרי כדי שלא “ידרוס” קוד בעת הוספת פיצ’רים.
+/* LEAD CORE • Premium CRM (RTL)
+   Fix: stable Google Sheets sync (avoid CORS preflight) + clean modular structure
 */
 (() => {
   "use strict";
@@ -9,15 +9,45 @@
   // ---------------------------
   const $ = (sel, root = document) => root.querySelector(sel);
   const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
-
   const nowISO = () => new Date().toISOString();
+
+  const safeTrim = (v) => String(v ?? "").trim();
+  const uid = () => "c_" + Math.random().toString(16).slice(2) + "_" + Date.now().toString(16);
+
   const fmtMoney = (n) => {
     const x = Number(n || 0);
     return "₪" + x.toLocaleString("he-IL");
   };
 
-  const safeTrim = (v) => String(v ?? "").trim();
-  const uid = () => "c_" + Math.random().toString(16).slice(2) + "_" + Date.now().toString(16);
+  function escapeHtml(s) {
+    return String(s ?? "")
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#039;");
+  }
+
+  // ---------------------------
+  // Fetch helper (safe JSON)
+  // ---------------------------
+  async function fetchJson_(url, opts) {
+    const res = await fetch(url, Object.assign({
+      mode: "cors",
+      cache: "no-store",
+      redirect: "follow"
+    }, opts || {}));
+
+    const txt = await res.text();
+    let json;
+    try { json = JSON.parse(txt); }
+    catch {
+      return { ok: false, error: "Bad JSON from WebApp", raw: txt, status: res.status };
+    }
+
+    if (!res.ok) return { ok: false, error: json?.error || ("HTTP " + res.status), status: res.status, json };
+    return json;
+  }
 
   // ---------------------------
   // State Model
@@ -25,38 +55,60 @@
   const defaultState = () => ({
     meta: { updatedAt: null },
     customers: [],
-    activity: [
-      { at: nowISO(), text: "ברוך הבא ל-LEAD CORE. הוסף לקוח כדי להתחיל." }
-    ]
+    activity: [{ at: nowISO(), text: "ברוך הבא ל-LEAD CORE. הוסף לקוח כדי להתחיל." }]
   });
+
+  function normalizeState(s) {
+    const base = defaultState();
+    const out = {
+      meta: (s && typeof s.meta === "object" && s.meta) ? s.meta : {},
+      customers: Array.isArray(s?.customers) ? s.customers : [],
+      activity: Array.isArray(s?.activity) ? s.activity : base.activity
+    };
+
+    out.meta.updatedAt = out.meta.updatedAt || nowISO();
+
+    out.customers = out.customers.map((c) => ({
+      id: safeTrim(c?.id) || uid(),
+      firstName: safeTrim(c?.firstName),
+      lastName: safeTrim(c?.lastName),
+      phone: safeTrim(c?.phone),
+      idNumber: safeTrim(c?.idNumber),
+      monthlyPremium: Number(c?.monthlyPremium || 0),
+      notes: safeTrim(c?.notes),
+      createdAt: safeTrim(c?.createdAt) || nowISO(),
+      updatedAt: safeTrim(c?.updatedAt) || nowISO()
+    }));
+
+    out.activity = out.activity.map((a) => ({
+      at: safeTrim(a?.at) || nowISO(),
+      text: safeTrim(a?.text)
+    }));
+
+    return out;
+  }
 
   const State = {
     data: defaultState(),
     set(next) {
-      this.data = next;
-      this.data.meta ||= {};
+      this.data = normalizeState(next || {});
       this.data.meta.updatedAt = nowISO();
     }
   };
 
   // ---------------------------
-  // Storage Layer (Local + Google Sheets)
+  // Storage Layer (Local + Google Sheets WebApp)
   // ---------------------------
   const Storage = {
     mode: "local", // "local" | "sheets"
     gsUrl: "",
-
     localKey: "LEAD_CORE_STATE_V1",
 
     loadLocal() {
       const raw = localStorage.getItem(this.localKey);
       if (!raw) return defaultState();
-      try {
-        const parsed = JSON.parse(raw);
-        return normalizeState(parsed);
-      } catch {
-        return defaultState();
-      }
+      try { return normalizeState(JSON.parse(raw)); }
+      catch { return defaultState(); }
     },
 
     saveLocal(state) {
@@ -64,36 +116,38 @@
       return { ok: true, at: nowISO() };
     },
 
+    async pingSheets() {
+      if (!this.gsUrl) return { ok: false, error: "אין כתובת Web App" };
+      const url = new URL(this.gsUrl);
+      url.searchParams.set("action", "ping");
+      const json = await fetchJson_(url.toString(), { method: "GET" });
+      if (!json || json.ok !== true) return { ok: false, error: json?.error || "שגיאת ping" };
+      return { ok: true };
+    },
+
     async loadSheets() {
       if (!this.gsUrl) return { ok: false, error: "אין כתובת Web App" };
-
       const url = new URL(this.gsUrl);
       url.searchParams.set("action", "get");
-
-      const res = await fetch(url.toString(), { method: "GET" });
-      const json = await res.json();
-
-      if (!json || json.ok !== true) return { ok: false, error: "שגיאת get" };
-
-      const payload = normalizeState(json.payload || {});
-      return { ok: true, payload, at: json.at || nowISO() };
+      const json = await fetchJson_(url.toString(), { method: "GET" });
+      if (!json || json.ok !== true) return { ok: false, error: json?.error || "שגיאת get" };
+      return { ok: true, payload: normalizeState(json.payload || {}), at: json.at || nowISO() };
     },
 
     async saveSheets(state) {
       if (!this.gsUrl) return { ok: false, error: "אין כתובת Web App" };
 
-      // אנחנו שולחים POST עם JSON כדי לשמור ל-Sheet (action=put)
+      // חשוב: text/plain כדי להימנע מ-CORS preflight מול Apps Script
       const url = new URL(this.gsUrl);
       url.searchParams.set("action", "put");
 
-      const res = await fetch(url.toString(), {
+      const json = await fetchJson_(url.toString(), {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
         body: JSON.stringify({ payload: state })
       });
 
-      const json = await res.json();
-      if (!json || json.ok !== true) return { ok: false, error: "שגיאת put" };
+      if (!json || json.ok !== true) return { ok: false, error: json?.error || "שגיאת put" };
       return { ok: true, at: json.at || nowISO() };
     },
 
@@ -108,30 +162,8 @@
     }
   };
 
-  function normalizeState(s) {
-    const base = defaultState();
-    const out = {
-      meta: { ...(s?.meta || {}) },
-      customers: Array.isArray(s?.customers) ? s.customers : [],
-      activity: Array.isArray(s?.activity) ? s.activity : base.activity
-    };
-    // normalize customer objects
-    out.customers = out.customers.map((c) => ({
-      id: safeTrim(c.id) || uid(),
-      firstName: safeTrim(c.firstName),
-      lastName: safeTrim(c.lastName),
-      phone: safeTrim(c.phone),
-      idNumber: safeTrim(c.idNumber),
-      monthlyPremium: Number(c.monthlyPremium || 0),
-      notes: safeTrim(c.notes),
-      createdAt: safeTrim(c.createdAt) || nowISO(),
-      updatedAt: safeTrim(c.updatedAt) || nowISO()
-    }));
-    return out;
-  }
-
   // ---------------------------
-  // UI + Navigation
+  // UI
   // ---------------------------
   const UI = {
     els: {},
@@ -150,11 +182,10 @@
       this.els.syncText = $("#syncText");
       this.els.lastSyncText = $("#lastSyncText");
 
-      // Modals / Drawer
       this.els.modalCustomer = $("#modalCustomer");
       this.els.customerForm = $("#customerForm");
-      this.els.drawerCustomer = $("#drawerCustomer");
 
+      this.els.drawerCustomer = $("#drawerCustomer");
       this.els.drawerTitle = $("#drawerTitle");
       this.els.drawerPremium = $("#drawerPremium");
       this.els.drawerName = $("#drawerName");
@@ -163,7 +194,6 @@
       this.els.drawerNotes = $("#drawerNotes");
       this.els.btnSaveCustomer = $("#btnSaveCustomer");
 
-      // Settings
       this.els.modeLocal = $("#modeLocal");
       this.els.modeSheets = $("#modeSheets");
       this.els.gsUrl = $("#gsUrl");
@@ -171,26 +201,18 @@
       this.els.btnSyncNow = $("#btnSyncNow");
       this.els.btnResetLocal = $("#btnResetLocal");
 
-      // Topbar
-      $("#btnNewCustomer").addEventListener("click", () => this.openModal());
+      $("#btnNewCustomer")?.addEventListener("click", () => this.openModal());
 
-      // Nav
-      $$(".nav__item").forEach(btn => {
-        btn.addEventListener("click", () => this.goView(btn.dataset.view));
-      });
+      $$(".nav__item").forEach(btn => btn.addEventListener("click", () => this.goView(btn.dataset.view)));
 
-      // Close handlers
-      $$("[data-close='1']").forEach(el => {
-        el.addEventListener("click", () => this.closeOverlays());
-      });
+      $$("[data-close='1']").forEach(el => el.addEventListener("click", () => this.closeOverlays()));
 
-      // Search
-      this.els.globalSearch.addEventListener("input", () => this.renderCustomers());
+      this.els.globalSearch?.addEventListener("input", () => this.renderCustomers());
 
-      // Form submit
-      this.els.customerForm.addEventListener("submit", async (e) => {
+      this.els.customerForm?.addEventListener("submit", async (e) => {
         e.preventDefault();
         const fd = new FormData(this.els.customerForm);
+
         const customer = {
           id: uid(),
           firstName: safeTrim(fd.get("firstName")),
@@ -210,7 +232,6 @@
 
         State.data.customers.unshift(customer);
         State.data.activity.unshift({ at: nowISO(), text: `נוצר לקוח חדש: ${customer.firstName} ${customer.lastName}` });
-        State.data.meta.updatedAt = nowISO();
 
         await App.save("נשמר לקוח");
         this.closeModal();
@@ -218,33 +239,32 @@
         this.renderAll();
       });
 
-      // Drawer save
-      this.els.btnSaveCustomer.addEventListener("click", async () => {
+      this.els.btnSaveCustomer?.addEventListener("click", async () => {
         await App.save("נשמר תיק לקוח");
         alert("נשמר ✔");
         this.renderAll();
       });
 
-      // Settings
-      this.els.modeLocal.addEventListener("click", () => App.setMode("local"));
-      this.els.modeSheets.addEventListener("click", () => App.setMode("sheets"));
+      this.els.modeLocal?.addEventListener("click", () => App.setMode("local"));
+      this.els.modeSheets?.addEventListener("click", () => App.setMode("sheets"));
 
-      this.els.gsUrl.addEventListener("change", () => {
+      this.els.gsUrl?.addEventListener("change", () => {
         Storage.gsUrl = safeTrim(this.els.gsUrl.value);
         localStorage.setItem("LEAD_CORE_GS_URL", Storage.gsUrl);
+        this.renderSyncStatus();
       });
 
-      this.els.btnTestConn.addEventListener("click", async () => {
+      this.els.btnTestConn?.addEventListener("click", async () => {
         const r = await App.testConnection();
         alert(r.ok ? "חיבור תקין ✔" : ("חיבור נכשל: " + (r.error || "שגיאה")));
       });
 
-      this.els.btnSyncNow.addEventListener("click", async () => {
+      this.els.btnSyncNow?.addEventListener("click", async () => {
         const r = await App.syncNow();
         alert(r.ok ? "סנכרון בוצע ✔" : ("סנכרון נכשל: " + (r.error || "שגיאה")));
       });
 
-      this.els.btnResetLocal.addEventListener("click", () => {
+      this.els.btnResetLocal?.addEventListener("click", () => {
         if (!confirm("לאפס את ה-Local?")) return;
         localStorage.removeItem(Storage.localKey);
         State.set(defaultState());
@@ -254,12 +274,9 @@
     },
 
     goView(view) {
-      // set active button
       $$(".nav__item").forEach(b => b.classList.toggle("is-active", b.dataset.view === view));
-      // show view
       $$(".view").forEach(v => v.classList.remove("is-visible"));
-      const el = $("#view-" + view);
-      if (el) el.classList.add("is-visible");
+      $("#view-" + view)?.classList.add("is-visible");
 
       const titles = {
         dashboard: "דשבורד",
@@ -267,20 +284,19 @@
         esign: "החתמת לקוח",
         settings: "הגדרות מערכת"
       };
-      this.els.pageTitle.textContent = titles[view] || "LEAD CORE";
+      if (this.els.pageTitle) this.els.pageTitle.textContent = titles[view] || "LEAD CORE";
     },
 
     openModal() {
-      this.els.customerForm.reset();
-      this.els.modalCustomer.classList.add("is-open");
-      this.els.modalCustomer.setAttribute("aria-hidden", "false");
-      // focus first input
-      setTimeout(() => this.els.customerForm.querySelector("input[name='firstName']").focus(), 50);
+      this.els.customerForm?.reset();
+      this.els.modalCustomer?.classList.add("is-open");
+      this.els.modalCustomer?.setAttribute("aria-hidden", "false");
+      setTimeout(() => this.els.customerForm?.querySelector("input[name='firstName']")?.focus(), 50);
     },
 
     closeModal() {
-      this.els.modalCustomer.classList.remove("is-open");
-      this.els.modalCustomer.setAttribute("aria-hidden", "true");
+      this.els.modalCustomer?.classList.remove("is-open");
+      this.els.modalCustomer?.setAttribute("aria-hidden", "true");
     },
 
     openDrawer(customerId) {
@@ -294,17 +310,15 @@
       this.els.drawerId.textContent = c.idNumber || "—";
       this.els.drawerNotes.textContent = c.notes || "—";
 
-      // store "current"
       this.els.drawerCustomer.dataset.customerId = c.id;
-
       this.els.drawerCustomer.classList.add("is-open");
       this.els.drawerCustomer.setAttribute("aria-hidden", "false");
     },
 
     closeDrawer() {
-      this.els.drawerCustomer.classList.remove("is-open");
-      this.els.drawerCustomer.setAttribute("aria-hidden", "true");
-      this.els.drawerCustomer.dataset.customerId = "";
+      this.els.drawerCustomer?.classList.remove("is-open");
+      this.els.drawerCustomer?.setAttribute("aria-hidden", "true");
+      if (this.els.drawerCustomer) this.els.drawerCustomer.dataset.customerId = "";
     },
 
     closeOverlays() {
@@ -322,13 +336,12 @@
       const customers = State.data.customers;
       const totalPremium = customers.reduce((sum, c) => sum + Number(c.monthlyPremium || 0), 0);
 
-      this.els.kpiCustomers.textContent = String(customers.length);
-      this.els.kpiPremium.textContent = fmtMoney(totalPremium);
+      if (this.els.kpiCustomers) this.els.kpiCustomers.textContent = String(customers.length);
+      if (this.els.kpiPremium) this.els.kpiPremium.textContent = fmtMoney(totalPremium);
 
       const updatedAt = State.data.meta.updatedAt;
-      this.els.kpiUpdated.textContent = updatedAt ? new Date(updatedAt).toLocaleString("he-IL") : "—";
+      if (this.els.kpiUpdated) this.els.kpiUpdated.textContent = updatedAt ? new Date(updatedAt).toLocaleString("he-IL") : "—";
 
-      // activity
       const items = (State.data.activity || []).slice(0, 6).map(ev => {
         const time = new Date(ev.at).toLocaleString("he-IL");
         return `
@@ -342,11 +355,13 @@
         `;
       }).join("");
 
-      this.els.activityFeed.innerHTML = items || `<div class="muted">אין פעילות</div>`;
+      if (this.els.activityFeed) this.els.activityFeed.innerHTML = items || `<div class="muted">אין פעילות</div>`;
     },
 
     renderCustomers() {
-      const q = safeTrim(this.els.globalSearch.value).toLowerCase();
+      if (!this.els.customersTbody) return;
+
+      const q = safeTrim(this.els.globalSearch?.value).toLowerCase();
       const list = State.data.customers.filter(c => {
         if (!q) return true;
         const hay = `${c.firstName} ${c.lastName} ${c.phone} ${c.idNumber}`.toLowerCase();
@@ -367,63 +382,45 @@
         <tr><td colspan="5" class="muted" style="padding:18px">אין לקוחות להצגה</td></tr>
       `;
 
-      // bind open buttons
       $$("button[data-open]", this.els.customersTbody).forEach(btn => {
         btn.addEventListener("click", () => this.openDrawer(btn.dataset.open));
       });
     },
 
     renderSyncStatus() {
-      const dot = this.els.syncDot;
-      const txt = this.els.syncText;
-      const last = this.els.lastSyncText;
-
       const modeLabel = Storage.mode === "sheets" ? "Google Sheets" : "Local";
-      txt.textContent = `מצב: ${modeLabel}`;
+      if (this.els.syncText) this.els.syncText.textContent = `מצב: ${modeLabel}`;
 
-      dot.classList.remove("ok","warn","err");
-      if (Storage.mode === "local") dot.classList.add("ok");
-      else {
-        if (Storage.gsUrl) dot.classList.add("ok");
-        else dot.classList.add("warn");
+      if (this.els.syncDot) {
+        this.els.syncDot.classList.remove("ok", "warn", "err");
+        if (Storage.mode === "local") this.els.syncDot.classList.add("ok");
+        else this.els.syncDot.classList.add(Storage.gsUrl ? "ok" : "warn");
       }
 
       const updatedAt = State.data.meta.updatedAt;
-      last.textContent = updatedAt ? ("עודכן: " + new Date(updatedAt).toLocaleString("he-IL")) : "לא סונכרן עדיין";
+      if (this.els.lastSyncText) {
+        this.els.lastSyncText.textContent = updatedAt
+          ? ("עודכן: " + new Date(updatedAt).toLocaleString("he-IL"))
+          : "לא סונכרן עדיין";
+      }
     }
   };
-
-  function escapeHtml(s) {
-    return String(s ?? "")
-      .replaceAll("&","&amp;")
-      .replaceAll("<","&lt;")
-      .replaceAll(">","&gt;")
-      .replaceAll('"',"&quot;")
-      .replaceAll("'","&#039;");
-  }
 
   // ---------------------------
   // App Controller
   // ---------------------------
   const App = {
     async boot() {
-      // restore settings
       Storage.gsUrl = localStorage.getItem("LEAD_CORE_GS_URL") || "";
       Storage.mode = localStorage.getItem("LEAD_CORE_MODE") || "local";
-      UI.els.gsUrl.value = Storage.gsUrl;
+      if (UI.els.gsUrl) UI.els.gsUrl.value = Storage.gsUrl;
 
-      UI.els.modeLocal.classList.toggle("is-active", Storage.mode === "local");
-      UI.els.modeSheets.classList.toggle("is-active", Storage.mode === "sheets");
+      UI.els.modeLocal?.classList.toggle("is-active", Storage.mode === "local");
+      UI.els.modeSheets?.classList.toggle("is-active", Storage.mode === "sheets");
 
-      // load
       const r = await Storage.load();
-      if (r.ok) {
-        State.set(r.payload);
-      } else {
-        // fallback local
-        State.set(Storage.loadLocal());
-        State.data.activity.unshift({ at: nowISO(), text: "המערכת עלתה ב-Local (בעיה בחיבור ל-Sheets)." });
-      }
+      if (r.ok) State.set(r.payload);
+      else State.set(Storage.loadLocal());
 
       UI.renderAll();
       UI.goView("dashboard");
@@ -433,18 +430,15 @@
       State.data.meta.updatedAt = nowISO();
       if (activityText) State.data.activity.unshift({ at: nowISO(), text: activityText });
 
-      // If drawer open, update from "current" (we keep it simple now; later we'll add editing fields)
-      const currentId = UI.els.drawerCustomer.dataset.customerId;
+      const currentId = UI.els.drawerCustomer?.dataset?.customerId;
       if (currentId) {
-        // keep updatedAt for the customer
         const c = State.data.customers.find(x => x.id === currentId);
         if (c) c.updatedAt = nowISO();
       }
 
       const r = await Storage.save(State.data);
-      if (!r.ok) {
-        State.data.activity.unshift({ at: nowISO(), text: "שמירה נכשלה (בדוק חיבור/URL)." });
-      }
+      if (!r.ok) State.data.activity.unshift({ at: nowISO(), text: "שמירה נכשלה (בדוק חיבור/URL)." });
+
       UI.renderSyncStatus();
       return r;
     },
@@ -453,20 +447,17 @@
       Storage.mode = mode;
       localStorage.setItem("LEAD_CORE_MODE", mode);
 
-      UI.els.modeLocal.classList.toggle("is-active", mode === "local");
-      UI.els.modeSheets.classList.toggle("is-active", mode === "sheets");
-
+      UI.els.modeLocal?.classList.toggle("is-active", mode === "local");
+      UI.els.modeSheets?.classList.toggle("is-active", mode === "sheets");
       UI.renderSyncStatus();
 
-      // אופציונלי: כשעוברים ל-Sheets נטען מהענן ישר
       if (mode === "sheets") {
         const r = await Storage.loadSheets();
         if (r.ok) {
           State.set(r.payload);
-          await Storage.saveLocal(State.data); // backup local
-          UI.renderAll();
+          await Storage.saveLocal(State.data);
           State.data.activity.unshift({ at: nowISO(), text: "נטען מ-Google Sheets" });
-          UI.renderDashboard();
+          UI.renderAll();
         } else {
           alert("לא ניתן לטעון מ-Sheets: " + (r.error || "שגיאה"));
         }
@@ -476,17 +467,13 @@
     async testConnection() {
       if (!Storage.gsUrl) return { ok: false, error: "אין URL" };
       try {
-        const r = await Storage.loadSheets();
-        return r.ok ? { ok: true } : r;
+        return await Storage.pingSheets();
       } catch (e) {
         return { ok: false, error: String(e?.message || e) };
       }
     },
 
     async syncNow() {
-      // Strategy:
-      // 1) Load from Sheets (if ok) -> set state
-      // 2) Save current state back (ensures schema)
       if (Storage.mode !== "sheets") return { ok: false, error: "עבור למצב Google Sheets קודם" };
       try {
         const r1 = await Storage.loadSheets();
@@ -496,7 +483,7 @@
         const r2 = await Storage.saveSheets(State.data);
         if (!r2.ok) return r2;
 
-        await Storage.saveLocal(State.data); // local backup
+        await Storage.saveLocal(State.data);
         UI.renderAll();
         return { ok: true };
       } catch (e) {
@@ -505,15 +492,10 @@
     }
   };
 
-  // ---------------------------
-  // Boot
-  // ---------------------------
   document.addEventListener("DOMContentLoaded", async () => {
     UI.init();
     await App.boot();
   });
 
-  // Expose a minimal namespace for debugging without polluting global scope too much
   window.LEAD_CORE = { App, State, Storage, UI };
 })();
-
