@@ -82,7 +82,6 @@
     async saveSheets(state) {
       if (!this.gsUrl) return { ok: false, error: "אין כתובת Web App" };
 
-      // אנחנו שולחים POST עם JSON כדי לשמור ל-Sheet (action=put)
       const url = new URL(this.gsUrl);
       url.searchParams.set("action", "put");
 
@@ -115,7 +114,7 @@
       customers: Array.isArray(s?.customers) ? s.customers : [],
       activity: Array.isArray(s?.activity) ? s.activity : base.activity
     };
-    // normalize customer objects
+
     out.customers = out.customers.map((c) => ({
       id: safeTrim(c.id) || uid(),
       firstName: safeTrim(c.firstName),
@@ -254,9 +253,7 @@
     },
 
     goView(view) {
-      // set active button
       $$(".nav__item").forEach(b => b.classList.toggle("is-active", b.dataset.view === view));
-      // show view
       $$(".view").forEach(v => v.classList.remove("is-visible"));
       const el = $("#view-" + view);
       if (el) el.classList.add("is-visible");
@@ -274,7 +271,6 @@
       this.els.customerForm.reset();
       this.els.modalCustomer.classList.add("is-open");
       this.els.modalCustomer.setAttribute("aria-hidden", "false");
-      // focus first input
       setTimeout(() => this.els.customerForm.querySelector("input[name='firstName']").focus(), 50);
     },
 
@@ -294,7 +290,6 @@
       this.els.drawerId.textContent = c.idNumber || "—";
       this.els.drawerNotes.textContent = c.notes || "—";
 
-      // store "current"
       this.els.drawerCustomer.dataset.customerId = c.id;
 
       this.els.drawerCustomer.classList.add("is-open");
@@ -328,7 +323,6 @@
       const updatedAt = State.data.meta.updatedAt;
       this.els.kpiUpdated.textContent = updatedAt ? new Date(updatedAt).toLocaleString("he-IL") : "—";
 
-      // activity
       const items = (State.data.activity || []).slice(0, 6).map(ev => {
         const time = new Date(ev.at).toLocaleString("he-IL");
         return `
@@ -367,7 +361,6 @@
         <tr><td colspan="5" class="muted" style="padding:18px">אין לקוחות להצגה</td></tr>
       `;
 
-      // bind open buttons
       $$("button[data-open]", this.els.customersTbody).forEach(btn => {
         btn.addEventListener("click", () => this.openDrawer(btn.dataset.open));
       });
@@ -407,7 +400,6 @@
   // ---------------------------
   const App = {
     async boot() {
-      // restore settings
       Storage.gsUrl = localStorage.getItem("LEAD_CORE_GS_URL") || "";
       Storage.mode = localStorage.getItem("LEAD_CORE_MODE") || "local";
       UI.els.gsUrl.value = Storage.gsUrl;
@@ -415,12 +407,10 @@
       UI.els.modeLocal.classList.toggle("is-active", Storage.mode === "local");
       UI.els.modeSheets.classList.toggle("is-active", Storage.mode === "sheets");
 
-      // load
       const r = await Storage.load();
       if (r.ok) {
         State.set(r.payload);
       } else {
-        // fallback local
         State.set(Storage.loadLocal());
         State.data.activity.unshift({ at: nowISO(), text: "המערכת עלתה ב-Local (בעיה בחיבור ל-Sheets)." });
       }
@@ -433,10 +423,8 @@
       State.data.meta.updatedAt = nowISO();
       if (activityText) State.data.activity.unshift({ at: nowISO(), text: activityText });
 
-      // If drawer open, update from "current" (we keep it simple now; later we'll add editing fields)
       const currentId = UI.els.drawerCustomer.dataset.customerId;
       if (currentId) {
-        // keep updatedAt for the customer
         const c = State.data.customers.find(x => x.id === currentId);
         if (c) c.updatedAt = nowISO();
       }
@@ -458,12 +446,11 @@
 
       UI.renderSyncStatus();
 
-      // אופציונלי: כשעוברים ל-Sheets נטען מהענן ישר
       if (mode === "sheets") {
         const r = await Storage.loadSheets();
         if (r.ok) {
           State.set(r.payload);
-          await Storage.saveLocal(State.data); // backup local
+          await Storage.saveLocal(State.data);
           UI.renderAll();
           State.data.activity.unshift({ at: nowISO(), text: "נטען מ-Google Sheets" });
           UI.renderDashboard();
@@ -484,9 +471,6 @@
     },
 
     async syncNow() {
-      // Strategy:
-      // 1) Load from Sheets (if ok) -> set state
-      // 2) Save current state back (ensures schema)
       if (Storage.mode !== "sheets") return { ok: false, error: "עבור למצב Google Sheets קודם" };
       try {
         const r1 = await Storage.loadSheets();
@@ -496,7 +480,7 @@
         const r2 = await Storage.saveSheets(State.data);
         if (!r2.ok) return r2;
 
-        await Storage.saveLocal(State.data); // local backup
+        await Storage.saveLocal(State.data);
         UI.renderAll();
         return { ok: true };
       } catch (e) {
@@ -513,6 +497,5 @@
     await App.boot();
   });
 
-  // Expose a minimal namespace for debugging without polluting global scope too much
   window.LEAD_CORE = { App, State, Storage, UI };
 })();
