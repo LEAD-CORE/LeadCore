@@ -1,0 +1,316 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>LEAD CORE • מערכת CRM</title>
+  <meta name="theme-color" content="#eef4ff" />
+
+  <link rel="stylesheet" href="./app.css" />
+</head>
+
+<body>
+  <div class="app" id="app">
+    <!-- Sidebar (left) -->
+    <aside class="sidebar" aria-label="תפריט ראשי">
+      <div class="brand">
+        <div class="brand__logo">LC</div>
+        <div class="brand__text">
+          <div class="brand__name">LEAD CORE</div>
+          <div class="brand__sub">CRM Premium</div>
+        </div>
+      </div>
+
+      <nav class="nav">
+        <button class="nav__item is-active" data-view="dashboard">
+          <span class="nav__icon">📊</span>
+          <span class="nav__label">דשבורד</span>
+        </button>
+
+        <button class="nav__item" data-view="customers">
+          <span class="nav__icon">👥</span>
+          <span class="nav__label">לקוחות</span>
+        </button>
+
+        <button class="nav__item" data-view="esign">
+          <span class="nav__icon">✍️</span>
+          <span class="nav__label">החתמת לקוח</span>
+        </button>
+
+        <button class="nav__item" data-view="settings">
+          <span class="nav__icon">⚙️</span>
+          <span class="nav__label">הגדרות מערכת</span>
+        </button>
+      </nav>
+
+      <div class="sidebar__foot">
+        <div class="pill">
+          <span class="dot" id="syncDot" aria-hidden="true"></span>
+          <span id="syncText">מצב: Local</span>
+        </div>
+        <div class="muted small" id="lastSyncText">לא סונכרן עדיין</div>
+      </div>
+    </aside>
+
+    <!-- Main -->
+    <main class="main">
+      <!-- Topbar -->
+      <header class="topbar">
+        <div class="topbar__left">
+          <div class="pageTitle">
+            <div class="pageTitle__kicker">LEAD CORE</div>
+            <h1 class="pageTitle__title" id="pageTitle">דשבורד</h1>
+          </div>
+        </div>
+
+        <div class="topbar__center only-customers">
+          <div class="search">
+            <input id="globalSearch" class="search__input" type="search" placeholder="חיפוש לקוח (שם / טלפון / ת״ז)..."  />
+            <button class="search__btn" id="btnSearch" type="button" aria-label="חיפוש">חיפוש</button>
+          </div>
+        </div>
+
+        <div class="topbar__right">
+          <button class="btn btn--primary" id="btnNewCustomer">
+            + יצירת לקוח
+          </button>
+        </div>
+      </header>
+
+      <!-- Content -->
+      <section class="content">
+
+        <!-- DASHBOARD -->
+        <section class="view is-visible" id="view-dashboard">
+          <div class="grid grid--kpis">
+            <div class="card kpi">
+              <div class="kpi__label">לקוחות</div>
+              <div class="kpi__value" id="kpiCustomers">0</div>
+              <div class="kpi__sub">סה״כ במערכת</div>
+            </div>
+            <div class="card kpi">
+              <div class="kpi__label">פרמיה חודשית</div>
+              <div class="kpi__value" id="kpiPremium">₪0</div>
+              <div class="kpi__sub">סכום כולל</div>
+            </div>
+            <div class="card kpi">
+              <div class="kpi__label">עודכן לאחרונה</div>
+              <div class="kpi__value" id="kpiUpdated">—</div>
+              <div class="kpi__sub">סנכרון</div>
+            </div>
+          </div>
+
+          <div class="grid grid--2">
+            <div class="card">
+              <div class="card__head">
+                <div class="card__title">פעילות אחרונה</div>
+                <div class="card__hint">דוגמא</div>
+              </div>
+              <div class="timeline" id="activityFeed">
+                <!-- injected -->
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card__head">
+                <div class="card__title">מהירויות עבודה</div>
+                <div class="card__hint">דוגמא</div>
+              </div>
+              <div class="miniStats">
+                <div class="miniStats__row">
+                  <div class="miniStats__label">יצירת לקוח</div>
+                  <div class="miniStats__bar"><span style="width:72%"></span></div>
+                  <div class="miniStats__value">מהיר</div>
+                </div>
+                <div class="miniStats__row">
+                  <div class="miniStats__label">מציאת לקוח</div>
+                  <div class="miniStats__bar"><span style="width:86%"></span></div>
+                  <div class="miniStats__value">מעולה</div>
+                </div>
+                <div class="miniStats__row">
+                  <div class="miniStats__label">סנכרון</div>
+                  <div class="miniStats__bar"><span style="width:65%"></span></div>
+                  <div class="miniStats__value">טוב</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- CUSTOMERS -->
+        <section class="view" id="view-customers">
+          <div class="card">
+            <div class="card__head">
+              <div class="card__title">רשימת לקוחות</div>
+              <div class="card__hint">לחץ על לקוח כדי לפתוח תיק</div>
+            </div>
+
+            <div class="tableWrap">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th>שם</th>
+                    <th>טלפון</th>
+                    <th>ת״ז</th>
+                    <th>פרמיה חודשית</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody id="customersTbody">
+                  <!-- injected -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- ESIGN -->
+        <section class="view" id="view-esign">
+          <div class="card">
+            <div class="card__head">
+              <div class="card__title">החתמת לקוח</div>
+              <div class="card__hint">שלב ראשון: מסך בסיס. נוסיף פה בהמשך מסמכים/חתימה.</div>
+            </div>
+            <div class="emptyState">
+              <div class="emptyState__icon">✍️</div>
+              <div class="emptyState__title">כאן נוסיף מערכת החתמה</div>
+              <div class="emptyState__text">בחירה של מסמך, שליחה ללקוח, חתימה ושמירה חזרה למערכת.</div>
+            </div>
+          </div>
+        </section>
+
+        <!-- SETTINGS -->
+        <section class="view" id="view-settings">
+          <div class="card">
+            <div class="card__head">
+              <div class="card__title">הגדרות מערכת</div>
+              <div class="card__hint">חיבור ל-Google Sheets + מצב עבודה</div>
+            </div>
+
+            <div class="formGrid">
+              <div class="field">
+                <label class="label">מצב נתונים</label>
+                <div class="segmented" role="tablist" aria-label="מצב נתונים">
+                  <button class="segmented__btn is-active" id="modeLocal" type="button">Local</button>
+                  <button class="segmented__btn" id="modeSheets" type="button">Google Sheets</button>
+                </div>
+                <div class="help">Local עובד בלי אינטרנט. Google Sheets מושך/שומר ל-Apps Script Web App.</div>
+              </div>
+
+              <div class="field">
+                <label class="label">כתובת Web App (Apps Script)</label>
+                <input class="input" id="gsUrl" type="url" placeholder="הדבק כאן את ה-URL של ה-Web App" />
+                <div class="help">לדוגמא: https://script.google.com/macros/s/XXXX/exec</div>
+              </div>
+
+              <div class="field">
+                <label class="label">פעולות</label>
+                <div class="row">
+                  <button class="btn" id="btnTestConn" type="button">בדיקת חיבור</button>
+                  <button class="btn" id="btnSyncNow" type="button">סנכרון עכשיו</button>
+                  <button class="btn btn--danger" id="btnResetLocal" type="button">איפוס Local</button>
+                </div>
+                <div class="help">המערכת בנויה שכבות, כדי להוסיף פיצ’רים בלי לשבור קוד.</div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+      </section>
+    </main>
+  </div>
+
+  <!-- MODAL: New Customer -->
+  <div class="modal" id="modalCustomer" aria-hidden="true">
+    <div class="modal__backdrop" data-close="1"></div>
+    <div class="modal__panel" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <div class="modal__head">
+        <div>
+          <div class="modal__kicker">LEAD CORE</div>
+          <div class="modal__title" id="modalTitle">הקמת לקוח חדש</div>
+        </div>
+        <button class="iconBtn" data-close="1" aria-label="סגור">✕</button>
+      </div>
+
+      <form class="modal__body" id="customerForm">
+        <div class="formGrid">
+          <div class="field">
+            <label class="label">שם פרטי</label>
+            <input class="input" name="firstName" required />
+          </div>
+          <div class="field">
+            <label class="label">שם משפחה</label>
+            <input class="input" name="lastName" required />
+          </div>
+          <div class="field">
+            <label class="label">טלפון</label>
+            <input class="input" name="phone" inputmode="tel" required />
+          </div>
+          <div class="field">
+            <label class="label">ת״ז</label>
+            <input class="input" name="idNumber" inputmode="numeric" />
+          </div>
+</div>
+
+        <div class="modal__foot">
+          <button class="btn" type="button" data-close="1">ביטול</button>
+          <button class="btn btn--primary" type="submit">שמירה ופתיחת תיק</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- DRAWER: Customer File -->
+  <div class="drawer" id="drawerCustomer" aria-hidden="true">
+    <div class="drawer__backdrop" data-close="1"></div>
+    <div class="drawer__panel" role="dialog" aria-modal="true" aria-labelledby="drawerTitle">
+      <div class="drawer__head">
+        <div>
+          <div class="drawer__kicker">תיק לקוח</div>
+          <div class="drawer__title" id="drawerTitle">—</div>
+        </div>
+        <button class="iconBtn" data-close="1" aria-label="סגור">✕</button>
+      </div>
+
+      <div class="drawer__body">
+        <div class="profile">
+          <div class="profile__card">
+            <div class="profile__label">פרמיה חודשית</div>
+            <div class="profile__value" id="drawerPremium">₪0</div>
+            <div class="profile__sub">מעודכן ללקוח</div>
+          </div>
+
+          <div class="profile__details">
+            <div class="detail">
+              <div class="detail__k">שם מלא</div>
+              <div class="detail__v" id="drawerName">—</div>
+            </div>
+            <div class="detail">
+              <div class="detail__k">טלפון</div>
+              <div class="detail__v" id="drawerPhone">—</div>
+            </div>
+            <div class="detail">
+              <div class="detail__k">ת״ז</div>
+              <div class="detail__v" id="drawerId">—</div>
+            </div>
+            <div class="detail">
+              <div class="detail__k">הערות</div>
+              <div class="detail__v" id="drawerNotes">—</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="row row--between">
+          <div class="muted">בהמשך נוסיף טאבים: מסמכים / משימות / היסטוריה / חתימות</div>
+          <button class="btn" id="btnSaveCustomer" type="button">שמירה</button>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <script src="./app.js"></script>
+</body>
+</html>
