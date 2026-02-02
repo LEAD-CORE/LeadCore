@@ -51,6 +51,50 @@
     }, ms);
   };
 
+  // ---------------------------
+  // Inline confirmation (no native dialogs)
+  // ---------------------------
+  const confirmInline = (message, okText = "אישור", cancelText = "ביטול") => {
+    return new Promise((resolve) => {
+      const overlay = document.createElement("div");
+      overlay.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;z-index:99999;padding:16px;";
+      const box = document.createElement("div");
+      box.style.cssText = "max-width:520px;width:100%;background:var(--panel,#0c0c12);border:1px solid var(--line,rgba(255,255,255,.12));border-radius:18px;box-shadow:0 20px 60px rgba(0,0,0,.45);padding:18px 18px 14px;color:var(--text,#fff);";
+      const title = document.createElement("div");
+      title.style.cssText = "font-weight:800;font-size:16px;margin-bottom:6px;";
+      title.textContent = "אישור פעולה";
+      const txt = document.createElement("div");
+      txt.style.cssText = "opacity:.9;line-height:1.45;margin-bottom:14px;";
+      txt.textContent = message;
+
+      const row = document.createElement("div");
+      row.style.cssText = "display:flex;gap:10px;justify-content:flex-end;";
+      const cancel = document.createElement("button");
+      cancel.type = "button";
+      cancel.className = "btn secondary";
+      cancel.textContent = cancelText;
+
+      const ok = document.createElement("button");
+      ok.type = "button";
+      ok.className = "btn";
+      ok.textContent = okText;
+
+      const cleanup = (val) => {
+        overlay.remove();
+        resolve(val);
+      };
+
+      cancel.addEventListener("click", () => cleanup(false));
+      ok.addEventListener("click", () => cleanup(true));
+      overlay.addEventListener("click", (e) => { if (e.target === overlay) cleanup(false); });
+
+      row.append(cancel, ok);
+      box.append(title, txt, row);
+      overlay.append(box);
+      document.body.append(overlay);
+    });
+  };
+
 
   const normalizeGsUrl = (raw) => {
     const v = safeTrim(raw).replace(/^"+|"+$/g, "");
@@ -279,7 +323,7 @@ on(this.els.btnSearch, "click", () => {
         };
 
         if (!customer.firstName || !customer.lastName || !customer.phone) {
-          alert("נא למלא שם פרטי, שם משפחה וטלפון.");
+          toast("שגיאה", "נא למלא שם פרטי, שם משפחה וטלפון.", "err");
           return;
         }
 
@@ -296,7 +340,7 @@ on(this.els.btnSearch, "click", () => {
       // Drawer save
       this.els.btnSaveCustomer.addEventListener("click", async () => {
         await App.save("נשמר תיק לקוח");
-        alert("נשמר ✔");
+        toast("נשמר", "✔", "ok");
         this.renderAll();
       });
 
@@ -312,20 +356,21 @@ on(this.els.btnSearch, "click", () => {
 
       this.els.btnTestConn.addEventListener("click", async () => {
         const r = await App.testConnection();
-        alert(r.ok ? "חיבור תקין ✔" : ("חיבור נכשל: " + (r.error || "שגיאה")));
+        toast(r.ok ? "חיבור תקין" : "חיבור נכשל", r.ok ? "✔" : ("שגיאה: " + (r.error || "שגיאה")));
       });
 
       this.els.btnSyncNow.addEventListener("click", async () => {
         const r = await App.syncNow();
-        alert(r.ok ? "סנכרון בוצע ✔" : ("סנכרון נכשל: " + (r.error || "שגיאה")));
+        toast(r.ok ? "סנכרון בוצע" : "סנכרון נכשל", r.ok ? "✔" : (r.error || "שגיאה"), r.ok ? "ok" : "err");
       });
 
-      this.els.btnResetLocal.addEventListener("click", () => {
-        if (!confirm("לאפס את ה-Local?")) return;
+      this.els.btnResetLocal.addEventListener("click", async () => {
+        const ok = await confirmInline("לאפס את ה-Local?");
+        if (!ok) return;
         localStorage.removeItem(Storage.localKey);
         State.set(defaultState());
         this.renderAll();
-        alert("אופס Local בוצע.");
+        toast("אופס Local בוצע.", "", "ok");
       });
     },
 
@@ -564,7 +609,7 @@ on(this.els.btnSearch, "click", () => {
           State.data.activity.unshift({ at: nowISO(), text: "נטען מ-Google Sheets" });
           UI.renderDashboard();
         } else {
-          alert("לא ניתן לטעון מ-Sheets: " + (r.error || "שגיאה"));
+          toast("טעינה מ-Sheets נכשלה", (r.error || "שגיאה"), "err");
         }
       }
     },
