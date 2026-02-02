@@ -8,7 +8,7 @@
 // Google Sheets • Hard Default (works on every computer)
 // חשוב: הדביק כאן את כתובת ה-Web App שמסתיימת ב-/exec
 // ===========================
-const DEFAULT_GS_WEBAPP_URL = "https://script.google.com/macros/s/AKfycbwHDJlsn3TiTrPXpIVdOc9b0sy7cIlkF9cQnKJ4__19vvr-OUjvwzpEuSFhSBEItjB9Iw/exec";
+const DEFAULT_GS_WEBAPP_URL = "PASTE_YOUR_WEBAPP_EXEC_URL_HERE";
 
 
   // ---------------------------
@@ -524,6 +524,14 @@ on(this.els.btnSearch, "click", () => {
   // App Controller
   // ---------------------------
   const App = {
+    async ensureConnection(){
+      // בדיקת חיבור רכה: לא מפילה את המערכת, רק מעדכנת חיווי/לוג.
+      if (typeof Storage?.ensureConnection === "function") {
+        return await Storage.ensureConnection();
+      }
+      return { ok: true };
+    },
+
     async boot() {
 // restore settings
 Storage.mode = localStorage.getItem("LEAD_CORE_MODE") || "local";
