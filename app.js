@@ -10,6 +10,9 @@
   const $ = (sel, root = document) => root.querySelector(sel);
   const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 
+  // Safe event binding (prevents UI freeze if an element is missing)
+  const on = (el, evt, fn, opts) => { if (el && el.addEventListener) el.addEventListener(evt, fn, opts); };
+
   const nowISO = () => new Date().toISOString();
   const fmtMoney = (n) => {
     const x = Number(n || 0);
@@ -139,6 +142,7 @@
     init() {
       this.els.pageTitle = $("#pageTitle");
       this.els.customersSearch = $("#customersSearch");
+      this.els.globalSearch = $("#globalSearch");
       this.els.customersTbody = $("#customersTbody");
 
       this.els.kpiCustomers = $("#kpiCustomers");
@@ -172,23 +176,27 @@
       this.els.btnResetLocal = $("#btnResetLocal");
 
       // Topbar
-      $("#btnNewCustomer").addEventListener("click", () => this.openModal());
-
-      // Nav
-      $$(".nav__item").forEach(btn => {
-        btn.addEventListener("click", () => this.goView(btn.dataset.view));
-      });
-
-      // Close handlers
-      $$("[data-close='1']").forEach(el => {
-        el.addEventListener("click", () => this.closeOverlays());
-      });
-
-      // Search
+      on($("#btnNewCustomer"), "click", () => this.openModal());
+// Nav
+      $$(".nav__item").forEach(btn => on(btn, "click", () => this.goView(btn.dataset.view)));
+// Close handlers
+      $$("[data-close='1']").forEach(el => on(el, "click", () => this.closeOverlays()));
+// Search
       if (this.els.customersSearch) this.els.customersSearch.addEventListener("input", () => this.renderCustomers());
 
+// Global search (topbar) - safe binding
+on(this.els.globalSearch, "keydown", (e) => {
+  if (e.key !== "Enter") return;
+  const q = safeTrim(this.els.globalSearch.value).toLowerCase();
+  if (!q) return;
+  this.goView("customers");
+  const c = State.data.customers.find(x => (`${x.firstName} ${x.lastName} ${x.phone} ${x.idNumber}`).toLowerCase().includes(q));
+  if (c) this.openDrawer(c.id);
+});
+
       // Form submit
-      this.els.customerForm.addEventListener("submit", async (e) => {
+      on(this.els.customerForm, "submit", async (e) => {
+        if (!this.els.customerForm) return;
         e.preventDefault();
         const fd = new FormData(this.els.customerForm);
         const customer = {
@@ -219,32 +227,36 @@
       });
 
       // Drawer save
-      this.els.btnSaveCustomer.addEventListener("click", async () => {
+      on(this.els.btnSaveCustomer, "click", async () => {
+        if (!this.els.btnSaveCustomer) return;
         await App.save("נשמר תיק לקוח");
         alert("נשמר ✔");
         this.renderAll();
       });
 
       // Settings
-      this.els.modeLocal.addEventListener("click", () => App.setMode("local"));
-      this.els.modeSheets.addEventListener("click", () => App.setMode("sheets"));
-
-      this.els.gsUrl.addEventListener("change", () => {
+      on(this.els.modeLocal, "click", () => App.setMode("local"));
+on(this.els.modeSheets, "click", () => App.setMode("sheets"));
+on(this.els.gsUrl, "change", () => {
+        if (!this.els.gsUrl) return;
         Storage.gsUrl = safeTrim(this.els.gsUrl.value);
         localStorage.setItem("LEAD_CORE_GS_URL", Storage.gsUrl);
       });
 
-      this.els.btnTestConn.addEventListener("click", async () => {
+      on(this.els.btnTestConn, "click", async () => {
+        if (!this.els.btnTestConn) return;
         const r = await App.testConnection();
         alert(r.ok ? "חיבור תקין ✔" : ("חיבור נכשל: " + (r.error || "שגיאה")));
       });
 
-      this.els.btnSyncNow.addEventListener("click", async () => {
+      on(this.els.btnSyncNow, "click", async () => {
+        if (!this.els.btnSyncNow) return;
         const r = await App.syncNow();
         alert(r.ok ? "סנכרון בוצע ✔" : ("סנכרון נכשל: " + (r.error || "שגיאה")));
       });
 
-      this.els.btnResetLocal.addEventListener("click", () => {
+      on(this.els.btnResetLocal, "click", () => {
+        if (!this.els.btnResetLocal) return;
         if (!confirm("לאפס את ה-Local?")) return;
         localStorage.removeItem(Storage.localKey);
         State.set(defaultState());
@@ -271,7 +283,7 @@
     },
 
     openModal() {
-      this.els.customerForm.reset();
+      if (this.els.customerForm) this.els.customerForm.reset();
       this.els.modalCustomer.classList.add("is-open");
       this.els.modalCustomer.setAttribute("aria-hidden", "false");
       // focus first input
@@ -509,8 +521,13 @@
   // Boot
   // ---------------------------
   document.addEventListener("DOMContentLoaded", async () => {
-    UI.init();
-    await App.boot();
+    try {
+      UI.init();
+      await App.boot();
+    } catch (e) {
+      console.error("LEAD_CORE boot error:", e);
+      alert("שגיאה בעליית המערכת. פתח קונסול (F12) לפרטים.");
+    }
   });
 
   // Expose a minimal namespace for debugging without polluting global scope too much
