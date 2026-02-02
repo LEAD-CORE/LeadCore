@@ -655,7 +655,7 @@ on(this.els.btnSearch, "click", () => {
       await App.boot();
     } catch (e) {
       console.error("LEAD_CORE boot error:", e);
-      toast("המערכת עלתה", "נמצאה אזהרה לא קריטית. אם משהו לא עובד—פתח קונסול (F12).", "warn", 4200);
+      toast("המערכת עלתה", " (F12).", "warn", 4200);
     }
   });
 
