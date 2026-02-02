@@ -9,8 +9,6 @@
   // ---------------------------
   const $ = (sel, root = document) => root.querySelector(sel);
   const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
-  // Safe event binding
-  const on = (el, evt, fn, opts) => { if (el && el.addEventListener) el.addEventListener(evt, fn, opts); };
 
   const nowISO = () => new Date().toISOString();
   const fmtMoney = (n) => {
@@ -142,8 +140,6 @@
       this.els.pageTitle = $("#pageTitle");
       this.els.customersSearch = $("#customersSearch");
       this.els.customersTbody = $("#customersTbody");
-      this.els.globalSearch = $("#globalSearch");
-      this.els.btnSearch = $("#btnSearch");
 
       this.els.kpiCustomers = $("#kpiCustomers");
       this.els.kpiPremium = $("#kpiPremium");
@@ -189,19 +185,7 @@
       });
 
       // Search
-
-// globalSearch input -> filter customers list live (customers view)
-on(this.els.globalSearch, "input", () => {
-  if (!document.body.classList.contains("view-customers-active")) return;
-  this.renderCustomers();
-});
       if (this.els.customersSearch) this.els.customersSearch.addEventListener("input", () => this.renderCustomers());
-
-// Search button: move matching customer(s) to top in Customers list
-on(this.els.btnSearch, "click", () => {
-  this.goView("customers");
-  this.renderCustomers();
-});
 
       // Form submit
       this.els.customerForm.addEventListener("submit", async (e) => {
@@ -284,9 +268,6 @@ on(this.els.btnSearch, "click", () => {
         settings: "הגדרות מערכת"
       };
       this.els.pageTitle.textContent = titles[view] || "LEAD CORE";
-
-      // show top search only on Customers view
-      document.body.classList.toggle("view-customers-active", view === "customers");
     },
 
     openModal() {
@@ -365,28 +346,12 @@ on(this.els.btnSearch, "click", () => {
     },
 
     renderCustomers() {
-      const q = safeTrim((this.els.globalSearch && this.els.globalSearch.value) || "").toLowerCase();
-
-      // Keep original order index so non-matching customers don't "shuffle"
-      const scored = State.data.customers.map((c, idx) => {
-        const name = `${c.firstName} ${c.lastName}`.trim().toLowerCase();
-        const phone = String(c.phone || "").toLowerCase();
-        const idn = String(c.idNumber || "").toLowerCase();
-        const hay = `${name} ${phone} ${idn}`.trim();
-
-        let score = 0;
-        if (q) {
-          // Strongest: startsWith on name/phone/id
-          if (name.startsWith(q) || phone.startsWith(q) || idn.startsWith(q)) score = 300;
-          // Next: includes anywhere
-          else if (hay.includes(q)) score = 200;
-        }
-        return { c, idx, score };
+      const q = safeTrim(this.els.customersSearch?.value).toLowerCase();
+      const list = State.data.customers.filter(c => {
+        if (!q) return true;
+        const hay = `${c.firstName} ${c.lastName} ${c.phone} ${c.idNumber}`.toLowerCase();
+        return hay.includes(q);
       });
-
-      scored.sort((a, b) => (b.score - a.score) || (a.idx - b.idx));
-
-      const list = scored.map(x => x.c);
 
       this.els.customersTbody.innerHTML = list.map(c => `
         <tr>
@@ -544,13 +509,8 @@ on(this.els.btnSearch, "click", () => {
   // Boot
   // ---------------------------
   document.addEventListener("DOMContentLoaded", async () => {
-    try {
-      UI.init();
-      await App.boot();
-    } catch (e) {
-      console.error("LEAD_CORE boot error:", e);
-// alert removed – non-critical boot warnings are logged to console
-    }
+    UI.init();
+    await App.boot();
   });
 
   // Expose a minimal namespace for debugging without polluting global scope too much
