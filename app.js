@@ -643,10 +643,11 @@ async testConnection() {
     try {
       UI.init();
       await App.boot();
-    } catch (e) {
-      console.error("LEAD_CORE boot error:", e);
-      /* popup suppressed: see Console (F12) for details */
+catch (e) {
+  console.error("LEAD_CORE boot error:", e);
+  // intentionally silent – no popup on boot
 }
+
   });
 
   // Expose a minimal namespace for debugging without polluting global scope too much
