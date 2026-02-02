@@ -4,13 +4,14 @@
 (() => {
   "use strict";
 
-  
-  // Build marker
-  const LEADCORE_BUILD = "2026-02-02_nopopup_final";
+// ===========================
+// Google Sheets • Hard Default (works on every computer)
+// חשוב: הדביק כאן את כתובת ה-Web App שמסתיימת ב-/exec
+// ===========================
+const DEFAULT_GS_WEBAPP_URL = "https://script.google.com/macros/s/AKfycbwHDJlsn3TiTrPXpIVdOc9b0sy7cIlkF9cQnKJ4__19vvr-OUjvwzpEuSFhSBEItjB9Iw/exec";
 
-  // Google Sheets Web App URL (must end with /exec)
-  const DEFAULT_GS_WEBAPP_URL = "https://script.google.com/macros/s/AKfycbwHDJsn3TiTrPXplVdOc9b0sy7clIkF9cQnKJ4__19vvr-OUjwzpEuSFhSBEItjB9Iw/exec";
-// ---------------------------
+
+  // ---------------------------
   // Utilities
   // ---------------------------
   const $ = (sel, root = document) => root.querySelector(sel);
@@ -26,6 +27,41 @@
 
   const safeTrim = (v) => String(v ?? "").trim();
   const uid = () => "c_" + Math.random().toString(16).slice(2) + "_" + Date.now().toString(16);
+
+// ---------------------------
+// Sheets URL normalize + fetch with retry/timeout
+// ---------------------------
+function normalizeGsUrl(url){
+  url = String(url || "").trim();
+  url = url.replace(/^["']|["']$/g, "");
+  // אם הודבק /dev, נכריח ל-/exec
+  url = url.replace(/\/dev(\?.*)?$/i, "/exec");
+  // הסרת / בסוף
+  url = url.replace(/\/+$/g, "");
+  // ודא סיומת /exec
+  if (url && !url.toLowerCase().endsWith("/exec")) url += "/exec";
+  return url;
+}
+
+async function fetchWithRetry(url, options = {}, retries = 3, timeoutMs = 12000){
+  let lastErr;
+  for (let i = 1; i <= retries; i++){
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), timeoutMs);
+    try{
+      const res = await fetch(url, { ...options, signal: ctrl.signal });
+      return res;
+    } catch (e){
+      lastErr = e;
+      // backoff קטן
+      await new Promise(r => setTimeout(r, 300 * i));
+    } finally {
+      clearTimeout(t);
+    }
+  }
+  throw lastErr;
+}
+
 
   // ---------------------------
   // State Model
@@ -47,20 +83,12 @@
     }
   };
 
-
-function normalizeGsUrl(u){
-  const s = String(u || "").trim();
-  if(!s) return "";
-  // Accept both /exec and /dev, but convert /dev -> /exec (stable)
-  return s.replace(/\/dev\b/g, "/exec").replace(/\s+/g,"");
-}
-
   // ---------------------------
   // Storage Layer (Local + Google Sheets)
   // ---------------------------
   const Storage = {
     mode: "local", // "local" | "sheets"
-    gsUrl: "",
+    gsUrl: normalizeGsUrl(localStorage.getItem("LEAD_CORE_GS_URL") || DEFAULT_GS_WEBAPP_URL),
 
     localKey: "LEAD_CORE_STATE_V1",
 
@@ -80,22 +108,48 @@ function normalizeGsUrl(u){
       return { ok: true, at: nowISO() };
     },
 
-    async loadSheets() {
-      if (!this.gsUrl) return { ok: false, error: "אין כתובת Web App" };
+setGsUrl(url){
+  const n = normalizeGsUrl(url);
+  this.gsUrl = n;
+  localStorage.setItem("LEAD_CORE_GS_URL", n);
+  return n;
+},
 
-      const url = new URL(this.gsUrl);
-      url.searchParams.set("action", "get");
+async pingSheets(){
+  if (!this.gsUrl) return { ok: false, error: "אין כתובת Web App" };
+  const url = new URL(this.gsUrl);
+  url.searchParams.set("action", "ping");
+  try{
+    const res = await fetchWithRetry(url.toString(), { method: "GET" });
+    const json = await res.json().catch(() => null);
+    if (json && json.ok === true) return { ok: true };
+    return { ok: false, error: "Ping נכשל" };
+  } catch (e){
+    return { ok: false, error: String(e?.message || e) };
+  }
+},
 
-      const res = await fetch(url.toString(), { method: "GET" });
-      const json = await res.json();
+async loadSheets() {
+  if (!this.gsUrl) return { ok: false, error: "אין כתובת Web App" };
 
-      if (!json || json.ok !== true) return { ok: false, error: "שגיאת get" };
+  const url = new URL(this.gsUrl);
+  url.searchParams.set("action", "get");
 
-      const payload = normalizeState(json.payload || {});
-      return { ok: true, payload, at: json.at || nowISO() };
-    },
+  try{
+    const res = await fetchWithRetry(url.toString(), { method: "GET" });
+    const json = await res.json().catch(() => null);
 
-    async saveSheets(state) {
+    if (!json || json.ok !== true) return { ok: false, error: (json && json.error) ? String(json.error) : "שגיאת get" };
+
+    const payload = normalizeState(json.payload || {});
+    return { ok: true, payload, at: json.at || nowISO() };
+  } catch (e){
+    return { ok: false, error: String(e?.message || e) };
+  }
+},
+
+async saveSheets(state) {
+
       if (!this.gsUrl) return { ok: false, error: "אין כתובת Web App" };
 
       // אנחנו שולחים POST עם JSON כדי לשמור ל-Sheet (action=put)
@@ -116,9 +170,22 @@ function normalizeGsUrl(u){
     async load() {
       if (this.mode === "sheets") return this.loadSheets();
       return { ok: true, payload: this.loadLocal(), at: nowISO() };
-    },
+},
 
-    async save(state) {
+async ensureConnection(){
+  if (Storage.mode !== "sheets") return { ok: true };
+  // Ping קל כדי לוודא שהשרת זמין
+  const p = await Storage.pingSheets();
+  if (!p.ok){
+    State.data.activity.unshift({ at: nowISO(), text: "⚠ חיבור ל-Google Sheets לא זמין כרגע (בדוק URL/הרשאות/רשת)." });
+    UI.renderSyncStatus();
+    return p;
+  }
+  UI.renderSyncStatus();
+  return { ok: true };
+},
+
+async save(state) {
       if (this.mode === "sheets") return this.saveSheets(state);
       return this.saveLocal(state);
     }
@@ -260,9 +327,11 @@ on(this.els.btnSearch, "click", () => {
       this.els.modeSheets.addEventListener("click", () => App.setMode("sheets"));
 
       this.els.gsUrl.addEventListener("change", () => {
-        Storage.gsUrl = normalizeGsUrl(safeTrim(this.els.gsUrl.value));
-        localStorage.setItem("LEAD_CORE_GS_URL", Storage.gsUrl);
-      });
+  const n = Storage.setGsUrl(this.els.gsUrl.value);
+  // נעדכן גם את השדה כך שתמיד יישמר /exec נקי
+  this.els.gsUrl.value = n;
+  UI.renderSyncStatus();
+});
 
       this.els.btnTestConn.addEventListener("click", async () => {
         const r = await App.testConnection();
@@ -456,10 +525,11 @@ on(this.els.btnSearch, "click", () => {
   // ---------------------------
   const App = {
     async boot() {
-      // restore settings
-      Storage.gsUrl = normalizeGsUrl(localStorage.getItem("LEAD_CORE_GS_URL") || DEFAULT_GS_WEBAPP_URL);
-      Storage.mode = localStorage.getItem("LEAD_CORE_MODE") || "sheets";
-      if (UI.els.gsUrl) UI.els.gsUrl.value = Storage.gsUrl;
+// restore settings
+Storage.mode = localStorage.getItem("LEAD_CORE_MODE") || "local";
+// gsUrl כבר מאותחל עם DEFAULT + Local override בתחילת הקובץ, אבל נוודא נרמול
+Storage.gsUrl = normalizeGsUrl(localStorage.getItem("LEAD_CORE_GS_URL") || DEFAULT_GS_WEBAPP_URL);
+UI.els.gsUrl.value = Storage.gsUrl;
 
       UI.els.modeLocal.classList.toggle("is-active", Storage.mode === "local");
       UI.els.modeSheets.classList.toggle("is-active", Storage.mode === "sheets");
@@ -476,6 +546,8 @@ on(this.els.btnSearch, "click", () => {
 
       UI.renderAll();
       UI.goView("dashboard");
+      // בדיקת חיבור אוטומטית (לא חוסם טעינה)
+      await this.ensureConnection();
     },
 
     async save(activityText) {
@@ -509,6 +581,7 @@ on(this.els.btnSearch, "click", () => {
 
       // אופציונלי: כשעוברים ל-Sheets נטען מהענן ישר
       if (mode === "sheets") {
+        await this.ensureConnection();
         const r = await Storage.loadSheets();
         if (r.ok) {
           State.set(r.payload);
@@ -517,22 +590,19 @@ on(this.els.btnSearch, "click", () => {
           State.data.activity.unshift({ at: nowISO(), text: "נטען מ-Google Sheets" });
           UI.renderDashboard();
         } else {
-          State.data.activity.unshift({ at: nowISO(), text: "⚠ לא ניתן לטעון מ-Sheets: " + (r.error || "שגיאה") });
-          UI.renderDashboard();
-          UI.renderSyncStatus();
-}
+          alert("לא ניתן לטעון מ-Sheets: " + (r.error || "שגיאה"));
+        }
       }
     },
 
-    async testConnection() {
-      if (!Storage.gsUrl) return { ok: false, error: "אין URL" };
-      try {
-        const r = await Storage.loadSheets();
-        return r.ok ? { ok: true } : r;
-      } catch (e) {
-        return { ok: false, error: String(e?.message || e) };
-      }
-    },
+async testConnection() {
+  if (!Storage.gsUrl) return { ok: false, error: "אין URL" };
+  const p = await Storage.pingSheets();
+  if (!p.ok) return p;
+  const r = await Storage.loadSheets();
+  return r.ok ? { ok: true } : r;
+},
+
 
     async syncNow() {
       // Strategy:
@@ -563,9 +633,8 @@ on(this.els.btnSearch, "click", () => {
     try {
       UI.init();
       await App.boot();
-    } catch (e) {
-      console.error("LEAD_CORE boot error:", e);
-      /* boot popup suppressed */
+catch (e) {
+  console.error("LEAD_CORE boot error:", e);
 }
   });
 
