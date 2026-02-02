@@ -549,7 +549,7 @@ on(this.els.btnSearch, "click", () => {
       await App.boot();
     } catch (e) {
       console.error("LEAD_CORE boot error:", e);
-      alert("שגיאה בעליית המערכת. פתח קונסול (F12) לפרטים.");
+// alert removed – non-critical boot warnings are logged to console
     }
   });
 
