@@ -142,6 +142,7 @@
       this.els.pageTitle = $("#pageTitle");
       this.els.customersSearch = $("#customersSearch");
       this.els.customersTbody = $("#customersTbody");
+      this.els.globalSearch = $("#globalSearch");
       this.els.btnSearch = $("#btnSearch");
 
       this.els.kpiCustomers = $("#kpiCustomers");
@@ -187,33 +188,22 @@
         el.addEventListener("click", () => this.closeOverlays());
       });
 
-      
-// Search
-// Live reorder list while typing (Customers view only)
+      // Search
+
+// globalSearch input -> filter customers list live (customers view)
 on(this.els.globalSearch, "input", () => {
   if (!document.body.classList.contains("view-customers-active")) return;
   this.renderCustomers();
 });
+      if (this.els.customersSearch) this.els.customersSearch.addEventListener("input", () => this.renderCustomers());
 
-// Enter key = run search (go to Customers)
-on(this.els.globalSearch, "keydown", (e) => {
-  if (e.key !== "Enter") return;
-  this.goView("customers");
-  this.renderCustomers();
-});
-
-// Optional: legacy customersSearch (if exists in future)
-if (this.els.customersSearch) {
-  on(this.els.customersSearch, "input", () => this.renderCustomers());
-}
-
-// Search button (if exists)
+// Search button: move matching customer(s) to top in Customers list
 on(this.els.btnSearch, "click", () => {
   this.goView("customers");
   this.renderCustomers();
 });
 
-// Form submit
+      // Form submit
       this.els.customerForm.addEventListener("submit", async (e) => {
         e.preventDefault();
         const fd = new FormData(this.els.customerForm);
