@@ -1,0 +1,599 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>LEAD CORE • מערכת CRM</title>
+  <meta name="theme-color" content="#eef4ff" />
+
+  <link rel="stylesheet" href="./app.css" />
+</head>
+
+<body>
+  <div class="app" id="app">
+    <!-- Sidebar (left) -->
+    <aside class="sidebar" aria-label="תפריט ראשי">
+      <div class="brand">
+        <div class="brand__logo">LC</div>
+        <div class="brand__text">
+          <div class="brand__name">LEAD CORE</div>
+          <div class="brand__sub">CRM Premium</div>
+        </div>
+      </div>
+
+      <nav class="nav">
+        <button class="nav__item is-active" data-view="dashboard">
+          <span class="nav__icon">📊</span>
+          <span class="nav__label">דשבורד</span>
+        </button>
+
+        <button class="nav__item" data-view="customers">
+          <span class="nav__icon">👥</span>
+          <span class="nav__label">לקוחות</span>
+        </button>
+
+        <button class="nav__item" data-view="esign">
+          <span class="nav__icon">✍️</span>
+          <span class="nav__label">החתמת לקוח</span>
+        </button>
+
+        <button class="nav__item" data-view="settings">
+          <span class="nav__icon">⚙️</span>
+          <span class="nav__label">הגדרות מערכת</span>
+        </button>
+      </nav>
+
+      <div class="sidebar__foot">
+        <div class="pill">
+          <span class="dot" id="syncDot" aria-hidden="true"></span>
+          <span id="syncText">מצב: Google Sheets</span>
+        </div>
+        <div class="muted small" id="lastSyncText">לא סונכרן עדיין</div>
+      </div>
+    </aside>
+
+    <!-- Main -->
+    <main class="main">
+      <!-- Topbar -->
+      <header class="topbar">
+        <div class="topbar__left">
+          <div class="pageTitle">
+            <div class="pageTitle__kicker">LEAD CORE</div>
+            <h1 class="pageTitle__title" id="pageTitle">דשבורד</h1>
+          </div>
+        </div>
+
+        <div class="topbar__center only-customers">
+          <div class="search">
+            <input id="globalSearch" class="search__input" type="search" placeholder="חיפוש לקוח (שם / טלפון / ת״ז)..."  />
+            <button class="search__btn" id="btnSearch" type="button" aria-label="חיפוש">חיפוש</button>
+          </div>
+        </div>
+
+        <div class="topbar__right">
+          <button class="btn btn--primary" id="btnNewCustomer">
+            + יצירת לקוח
+          </button>
+        </div>
+      </header>
+
+      <!-- Content -->
+      <section class="content">
+
+        <!-- DASHBOARD -->
+        <section class="view is-visible" id="view-dashboard">
+          <div class="grid grid--kpis">
+            <div class="card kpi">
+              <div class="kpi__label">לקוחות</div>
+              <div class="kpi__value" id="kpiCustomers">0</div>
+              <div class="kpi__sub">סה״כ במערכת</div>
+            </div>
+            <div class="card kpi">
+              <div class="kpi__label">פרמיה חודשית</div>
+              <div class="kpi__value" id="kpiPremium">₪0</div>
+              <div class="kpi__sub">סכום כולל</div>
+            </div>
+            <div class="card kpi">
+              <div class="kpi__label">עודכן לאחרונה</div>
+              <div class="kpi__value" id="kpiUpdated">—</div>
+              <div class="kpi__sub">סנכרון</div>
+            </div>
+          </div>
+
+          <div class="grid grid--2">
+            <div class="card">
+              <div class="card__head">
+                <div class="card__title">פעילות אחרונה</div>
+                <div class="card__hint">דוגמא</div>
+              </div>
+              <div class="timeline" id="activityFeed">
+                <!-- injected -->
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card__head">
+                <div class="card__title">מהירויות עבודה</div>
+                <div class="card__hint">דוגמא</div>
+              </div>
+              <div class="miniStats">
+                <div class="miniStats__row">
+                  <div class="miniStats__label">יצירת לקוח</div>
+                  <div class="miniStats__bar"><span style="width:72%"></span></div>
+                  <div class="miniStats__value">מהיר</div>
+                </div>
+                <div class="miniStats__row">
+                  <div class="miniStats__label">מציאת לקוח</div>
+                  <div class="miniStats__bar"><span style="width:86%"></span></div>
+                  <div class="miniStats__value">מעולה</div>
+                </div>
+                <div class="miniStats__row">
+                  <div class="miniStats__label">סנכרון</div>
+                  <div class="miniStats__bar"><span style="width:65%"></span></div>
+                  <div class="miniStats__value">טוב</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- CUSTOMERS -->
+        <section class="view" id="view-customers">
+          <div class="card">
+            <div class="card__head">
+              <div class="card__title">רשימת לקוחות</div>
+              <div class="card__hint">לחץ על לקוח כדי לפתוח תיק</div>
+            </div>
+
+            <div class="tableWrap">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th>שם</th>
+                    <th>טלפון</th>
+                    <th>ת״ז</th>
+                    <th>פרמיה חודשית</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody id="customersTbody">
+                  <!-- injected -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- ESIGN -->
+        <section class="view" id="view-esign">
+          <div class="card">
+            <div class="card__head">
+              <div class="card__title">החתמת לקוח</div>
+              <div class="card__hint">שלב ראשון: מסך בסיס. נוסיף פה בהמשך מסמכים/חתימה.</div>
+            </div>
+            <div class="emptyState">
+              <div class="emptyState__icon">✍️</div>
+              <div class="emptyState__title">כאן נוסיף מערכת החתמה</div>
+              <div class="emptyState__text">בחירה של מסמך, שליחה ללקוח, חתימה ושמירה חזרה למערכת.</div>
+            </div>
+          </div>
+        </section>
+
+        <!-- SETTINGS -->
+        <section class="view" id="view-settings">
+          <div class="card">
+            <div class="card__head">
+              <div class="card__title">הגדרות מערכת</div>
+              <div class="card__hint">חיבור ל-Google Sheets + מצב עבודה</div>
+            </div>
+
+            <div class="formGrid">
+              <div class="field">
+                <label class="label">מצב נתונים</label>
+                <div class="pill" style="display:inline-flex; margin-top:6px">
+                  <span class="dot ok" aria-hidden="true"></span>
+                  <span>Google Sheets בלבד</span>
+                </div>
+                <div class="help">המערכת עובדת רק מול Google Sheets (Apps Script Web App). אין מצב Local בגירסה הזו.</div>
+              </div>
+
+              <div class="field">
+                <label class="label">כתובת Web App (Apps Script)</label>
+                <input class="input" id="gsUrl" type="url" placeholder="הדבק כאן את ה-URL של ה-Web App" />
+                <div class="help">לדוגמא: https://script.google.com/macros/s/XXXX/exec</div>
+              </div>
+
+              <div class="field">
+                <label class="label">פעולות</label>
+                <div class="row">
+                  <button class="btn" id="btnTestConn" type="button">בדיקת חיבור</button>
+                  <button class="btn" id="btnSyncNow" type="button">סנכרון עכשיו</button>
+                                  </div>
+                <div class="help">שמירה/טעינה מתבצעת מול ה-Web App. אם יש בעיה, בדוק Deploy והרשאות.</div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+      </section>
+    </main>
+  </div>
+
+  <!-- MODAL: New Customer -->
+  <div class="modal" id="modalCustomer" aria-hidden="true">
+    <div class="modal__backdrop" data-close="1"></div>
+    <div class="modal__panel" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <div class="modal__head">
+        <div>
+          <div class="modal__kicker">LEAD CORE</div>
+          <div class="modal__title" id="modalTitle">הקמת לקוח חדש</div>
+        </div>
+        <button class="iconBtn" data-close="1" aria-label="סגור">✕</button>
+      </div>
+
+      <form class="modal__body" id="customerForm">
+        <div class="formGrid">
+          <div class="field">
+            <label class="label">שם פרטי</label>
+            <input class="input" name="firstName" required />
+          </div>
+          <div class="field">
+            <label class="label">שם משפחה</label>
+            <input class="input" name="lastName" required />
+          </div>
+          <div class="field">
+            <label class="label">טלפון</label>
+            <input class="input" name="phone" inputmode="tel" required />
+          </div>
+          <div class="field">
+            <label class="label">ת״ז</label>
+            <input class="input" name="idNumber" inputmode="numeric" />
+          </div>
+
+          <div class="field">
+            <label class="label">נציג / סוכן מטפל</label>
+            <select class="input" name="assignedAgent" id="newAssignedAgent"></select>
+            <div class="help">נבחר בעת יצירת הלקוח (ניתן לשנות בתיק לקוח).</div>
+          </div>
+
+</div>
+
+        <div class="modal__foot">
+          <button class="btn" type="button" data-close="1">ביטול</button>
+          <button class="btn btn--primary" type="submit">שמירה ופתיחת תיק</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+
+  <!-- CUSTOMER FILE: Full Screen -->
+  <div class="customerFull" id="customerFull" aria-hidden="true">
+    <div class="customerFull__backdrop" data-close="1"></div>
+
+    <div class="customerFull__panel" role="dialog" aria-modal="true" aria-labelledby="cfName">
+      <div class="customerFull__top">
+        <div class="customerFull__title">
+          <div class="customerFull__name" id="cfName">—</div>
+</div>
+
+        <div class="row" style="gap:10px">
+          <button class="iconBtn" data-close="1" aria-label="סגור">✕</button>
+        </div>
+      </div>
+
+      <div class="customerFull__body">
+        <div class="cfLayout">
+          <aside class="cfSide">
+            <div class="dashCard dashCard--solid">
+              <div class="dashCard__k">פרמיה חודשית</div>
+              <div class="dashCard__v" id="cfTotalPremium">₪0</div>
+              <div class="dashCard__sub">מחושב מהביטוחים הפעילים</div>
+            </div>
+
+            <div class="dashCard dashCard--solid">
+              <div class="dashCard__k">ביטוחים פעילים</div>
+              <div class="dashCard__v" id="cfActiveCount">0</div>
+              <div class="dashCard__sub">מתוך כלל הביטוחים</div>
+            </div>
+
+            <div class="dashCard dashCard--solid">
+              <div class="dashCard__k">נציג מטפל</div>
+              <div style="margin-top:8px">
+                <select class="input" id="cfAgentSelect" aria-label="נציג מטפל"></select>
+              </div>
+              <div class="dashCard__sub">שיוך לפי נציגים</div>
+<div style="margin-top:10px">
+                <button class="btn" id="btnCancelledPolicies" type="button" style="width:100%">פוליסות שבוטלו</button>
+              </div>
+            </div>
+          </aside>
+
+          <main class="cfMain">
+            <div class="cfInfo glass-card">
+              <div class="cfGrid">
+                <div class="kv"><div class="k">שם לקוח</div><div class="v" id="cfNameLine">—</div></div>
+                <div class="kv"><div class="k">ת.ז</div><div class="v" id="cfId">—</div></div>
+                <div class="kv"><div class="k">טלפון</div><div class="v" id="cfPhone">—</div></div>
+                <div class="kv"><div class="k">מייל</div><div class="v" id="cfEmail">—</div></div>
+                <div class="kv"><div class="k">כתובת</div><div class="v" id="cfAddress">—</div></div>
+              </div>
+            </div>
+        <div class="policyFilters policyAddBar">
+          <select class="input" id="cfAddCompany" style="min-width:170px">
+            <option value="" selected disabled>בחר חברה</option>
+            <option>הראל</option>
+            <option>כלל</option>
+            <option>מנורה</option>
+            <option>הפניקס</option>
+            <option>מגדל</option>
+            <option>הכשרה</option>
+          </select>
+
+          <select class="input" id="cfAddType" style="min-width:190px">
+            <option value="" selected disabled>בחר סוג ביטוח</option>
+            <option>בריאות</option>
+            <option>מחלות קשות</option>
+            <option>מחלות סרטן</option>
+            <option>ריסק</option>
+            <option>ריסק משכנתא</option>
+            <option>תאונות אישיות</option>
+            <option>מדיקר</option>
+            <option>דירה</option>
+            <option>רכב</option>
+          </select>
+
+          <input class="input" id="cfAddPremium" type="number" inputmode="numeric" min="0" step="1"
+                 placeholder="פרמיה חודשית (₪)" style="min-width:170px" />
+
+          <input class="input" id="cfAddRenew" type="date" style="min-width:170px" />
+
+          <button class="btn btn--primary" id="btnAddPolicyInline" type="button">שמירת ביטוח</button>
+        </div>
+
+        <div class="muted small" style="margin:0 0 10px">
+          טיפ: תאריך החידוש יאפשר לנו בהמשך להקפיץ פולו-אפ לפני חידוש.
+        </div>
+
+        <div class="tableWrap policyTable">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>סוג ביטוח</th>
+                <th>חברה</th>
+                <th>פרמיה חודשית</th>
+                <th>תאריך חידוש</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="cfPoliciesTbody">
+              <!-- injected -->
+            </tbody>
+          </table>
+        </div>
+
+        </main>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- MODAL: Cancelled Policies -->
+  <div class="modal" id="modalCancelledPolicies" aria-hidden="true">
+    <div class="modal__backdrop" data-close="1"></div>
+    <div class="modal__panel" role="dialog" aria-modal="true" aria-labelledby="cancelledTitle">
+      <div class="modal__head">
+        <div>
+          <div class="modal__kicker">תיק לקוח</div>
+          <div class="modal__title" id="cancelledTitle">פוליסות שבוטלו</div>
+        </div>
+        <button class="iconBtn" data-close="1" aria-label="סגור">✕</button>
+      </div>
+
+      <div class="modal__body">
+        <div class="tableWrap">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>סוג ביטוח</th>
+                <th>חברה</th>
+                <th>פרמיה</th>
+                <th>תאריך ביטול</th>
+                <th>סיבת ביטול</th>
+                <th>נציג שביטל</th>
+              </tr>
+            </thead>
+            <tbody id="cancelledPoliciesTbody">
+              <!-- injected -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="modal__foot">
+        <button class="btn" type="button" data-close="1">סגור</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Add Policy -->
+  <div class="modal" id="modalPolicy" aria-hidden="true">
+    <div class="modal__backdrop" data-close="1"></div>
+    <div class="modal__panel" role="dialog" aria-modal="true" aria-labelledby="policyTitle">
+      <div class="modal__head">
+        <div>
+          <div class="modal__kicker">תיק לקוח</div>
+          <div class="modal__title" id="policyTitle">הוספת ביטוח</div>
+        </div>
+        <button class="iconBtn" data-close="1" aria-label="סגור">✕</button>
+      </div>
+
+      <form class="modal__body" id="policyForm">
+        <div class="formGrid">
+          <div class="field">
+            <label class="label">סוג ביטוח</label>
+            <select class="input" name="type" required>
+              <option value="">בחר</option>
+              <option>בריאות</option>
+              <option>מחלות קשות/סרטן</option>
+              <option>ריסק</option>
+              <option>ריסק משכנתא</option>
+              <option>תאונות אישיות</option>
+              <option>מדיקר</option>
+              <option>דירה</option>
+              <option>רכב</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label class="label">חברה</label>
+            <select class="input" name="company" required>
+              <option value="">בחר</option>
+              <option>הפניקס</option>
+              <option>מנורה</option>
+              <option>איילון</option>
+              <option>הראל</option>
+              <option>כלל</option>
+              <option>הכשרה</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label class="label">פרמיה חודשית</label>
+            <input class="input" name="premium" inputmode="numeric" placeholder="לדוגמה 220" required />
+          </div>
+
+          <div class="field">
+            <label class="label">תאריך חידוש</label>
+            <input class="input" name="renewAt" type="date" />
+          </div>
+        </div>
+
+        <div class="modal__foot">
+          <button class="btn" type="button" data-close="1">ביטול</button>
+          <button class="btn btn--primary" type="submit">שמירה</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- DRAWER: Customer File -->
+  <div class="drawer" id="drawerCustomer" aria-hidden="true">
+    <div class="drawer__backdrop" data-close="1"></div>
+    <div class="drawer__panel" role="dialog" aria-modal="true" aria-labelledby="drawerTitle">
+      <div class="drawer__head">
+        <div>
+          <div class="drawer__kicker">תיק לקוח</div>
+          <div class="drawer__title" id="drawerTitle">—</div>
+        </div>
+        <button class="iconBtn" data-close="1" aria-label="סגור">✕</button>
+      </div>
+
+      <div class="drawer__body">
+        <div class="profile">
+          <div class="profile__card">
+            <div class="profile__label">פרמיה חודשית</div>
+            <div class="profile__value" id="drawerPremium">₪0</div>
+            <div class="profile__sub">מעודכן ללקוח</div>
+          </div>
+
+          <div class="profile__details">
+            <div class="detail">
+              <div class="detail__k">שם מלא</div>
+              <div class="detail__v" id="drawerName">—</div>
+            </div>
+            <div class="detail">
+              <div class="detail__k">טלפון</div>
+              <div class="detail__v" id="drawerPhone">—</div>
+            </div>
+            <div class="detail">
+              <div class="detail__k">ת״ז</div>
+              <div class="detail__v" id="drawerId">—</div>
+            </div>
+            <div class="detail">
+              <div class="detail__k">הערות</div>
+              <div class="detail__v" id="drawerNotes">—</div>
+            </div>
+          </div>
+
+
+  <!-- MODAL: Cancel Policy -->
+  <div class="modal" id="modalCancelPolicy" aria-hidden="true">
+    <div class="modal__backdrop" data-close="1"></div>
+    <div class="modal__panel" role="dialog" aria-modal="true" aria-labelledby="cancelTitle">
+      <div class="modal__head">
+        <div>
+          <div class="modal__kicker">תיק לקוח</div>
+          <div class="modal__title" id="cancelTitle">ביטול פוליסה</div>
+        </div>
+        <button class="iconBtn" data-close="1" aria-label="סגור">✕</button>
+      </div>
+
+      <form class="modal__body" id="cancelPolicyForm">
+        <div class="formGrid" style="grid-template-columns:1fr">
+          <div class="field">
+            <label class="label">בחר פוליסה לביטול</label>
+            <div class="cancelList" id="cancelPolicyList">
+              <!-- injected -->
+            </div>
+            <div class="help">הפוליסות מוצגות מתוך תיק הלקוח.</div>
+          </div>
+
+          <div class="field">
+            <label class="label">סיבת ביטול</label>
+            <textarea class="input" name="reason" rows="3" placeholder="לדוגמה: מחיר גבוה, עבר לחברה אחרת..."></textarea>
+          </div>
+
+          <div class="field">
+            <label class="label">דחיית טיפול בביטול (אופציונלי)</label>
+            <input class="input" name="postponeUntil" type="date" />
+            <div class="help">אם תבחר תאריך – הבקשה תישמר כ״ממתין לביטול״ (לא יוריד מהפרמיה עד לביצוע בפועל).</div>
+          </div>
+
+          <div class="field">
+            <label class="label">טופס ביטול לשליחה (בעתיד)</label>
+            <select class="input" name="template">
+              <option value="">בחר טופס</option>
+              <option>ביטול פוליסת בריאות כלל</option>
+              <option>ביטול פוליסה בריאות הראל</option>
+              <option>ביטול פוליסה בריאות מנורה</option>
+              <option>ביטול פוליסה בריאות הפניקס</option>
+              <option>ביטול פוליסה בריאות מגדל</option>
+            </select>
+            <div class="help">כרגע לא נשלח בפועל – זה תשתית לשלב הבא.</div>
+          </div>
+
+          <div class="field">
+            <label class="label">נבחר לביטול</label>
+            <div class="pill" style="display:inline-flex;margin-top:6px">
+              <span class="dot warn" aria-hidden="true"></span>
+              <span id="cancelChosenLine">לא נבחרה פוליסה</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal__foot">
+          <button class="btn" type="button" data-close="1">סגירה</button>
+          <button class="btn btn--danger" type="submit">אישור ביטול</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="row row--between">
+          <div class="muted">בהמשך נוסיף טאבים: מסמכים / משימות / היסטוריה / חתימות</div>
+          <button class="btn" id="btnSaveCustomer" type="button">שמירה</button>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <script src="./app.js"></script>
+</body>
+</html>
