@@ -1,78 +1,113 @@
-/* LEAD CORE • Premium CRM
-   Google Sheets ONLY – URL locked
-*/
-(() => {
-  "use strict";
+/**
+ * LeadCore • Google Sheets Sync Web App (robust)
+ * Storage:
+ *  - Sheet tab: DB
+ *  - A1: JSON state
+ *  - B1: lastUpdated ISO
+ *
+ * Endpoints:
+ *  GET  ?action=ping  -> {ok:true,msg:"pong"}
+ *  GET  ?action=get   -> {ok:true,payload:<state>,at:<iso>}
+ *  POST ?action=put   body:{payload:<state>} -> {ok:true,at:<iso>}
+ *
+ * IMPORTANT DEPLOY:
+ *  - Deploy > Manage deployments > Web app
+ *  - Execute as: Me
+ *  - Who has access: Anyone
+ *  - Update deployment (every time you edit)
+ */
 
-  const GS_URL = "https://script.google.com/macros/s/AKfycbySKLRnHE_JyzmofD83UCT8U1SmOKsXZAmnhL6pah48Ld0Bx4IeQsjYUpFWjgsCHLVE2Q/exec";
+// ====== CONFIG ======
+// Prefer URL (more reliable than openById in some cases)
+var SS_URL = ""; // <-- put your FULL Google Sheet URL here (recommended)
+// If you prefer ID, set SS_ID and leave SS_URL empty.
+var SS_ID  = "1-4oqJocNjrMuSSxVeEkNAJECPkRIXn-jNXvmhfGfgM";
 
-  const $ = (s, r = document) => r.querySelector(s);
-  const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
-  const nowISO = () => new Date().toISOString();
-  const uid = () => "c_" + Math.random().toString(16).slice(2);
+var TAB_NAME  = "DB";
+var CELL_JSON = "A1";
+var CELL_AT   = "B1";
 
-  const State = {
-    data: { meta:{}, customers:[], agents:[{id:"a1",name:"יובל"}], activity:[] }
-  };
+function doGet(e) {
+  var action = (e && e.parameter && e.parameter.action) ? String(e.parameter.action) : "ping";
+  if (action === "ping") return jsonOut({ ok:true, msg:"pong" });
 
-  async function loadSheets(){
-    const u = new URL(GS_URL);
-    u.searchParams.set("action","get");
-    const r = await fetch(u);
-    const j = await r.json();
-    if(!j.ok) throw new Error("LOAD FAILED");
-    return j.payload || {};
-  }
+  if (action === "get") {
+    try {
+      var sh = getTab_();
+      var raw = String(sh.getRange(CELL_JSON).getValue() || "").trim();
+      var at  = String(sh.getRange(CELL_AT).getValue() || "").trim();
 
-  async function saveSheets(data){
-    const u = new URL(GS_URL);
-    u.searchParams.set("action","put");
-    const r = await fetch(u,{
-      method:"POST",
-      headers:{ "Content-Type":"text/plain;charset=utf-8" },
-      body: JSON.stringify({ payload:data })
-    });
-    const j = await r.json();
-    if(!j.ok) throw new Error("SAVE FAILED");
-    return j;
-  }
+      if (!raw) return jsonOut({ ok:true, payload: normalizePayload_({}), at: at || new Date().toISOString() });
 
-  const App = {
-    async boot(){
-      try{
-        const data = await loadSheets();
-        State.data = data;
-        render();
-        setStatus("מחובר ל-Google Sheets");
-      }catch(e){
-        setStatus("❌ אין חיבור ל-Sheets");
-        console.error(e);
-      }
-    },
-    async save(){
-      State.data.meta.updatedAt = nowISO();
-      await saveSheets(State.data);
-      setStatus("נשמר ✔");
+      var payload = JSON.parse(raw);
+      return jsonOut({ ok:true, payload: normalizePayload_(payload), at: at || new Date().toISOString() });
+    } catch (err) {
+      return jsonOut({ ok:false, error: "get failed: " + safeErr_(err) });
     }
-  };
-
-  function setStatus(txt){
-    const el = $("#syncText");
-    if(el) el.textContent = txt;
   }
 
-  function render(){
-    const el = $("#customersTbody");
-    if(!el) return;
-    el.innerHTML = State.data.customers.map(c=>`
-      <tr>
-        <td>${c.firstName||""} ${c.lastName||""}</td>
-        <td>${c.phone||""}</td>
-        <td>${c.idNumber||""}</td>
-        <td>₪${c.monthlyPremium||0}</td>
-      </tr>
-    `).join("");
-  }
+  return jsonOut({ ok:false, error:"unknown action (GET): " + action });
+}
 
-  document.addEventListener("DOMContentLoaded", App.boot);
-})();
+function doPost(e) {
+  var action = (e && e.parameter && e.parameter.action) ? String(e.parameter.action) : "";
+  if (action !== "put") return jsonOut({ ok:false, error:"unknown action (POST): " + (action || "missing") });
+
+  try {
+    var bodyText = (e && e.postData && e.postData.contents) ? String(e.postData.contents) : "{}";
+    var body = JSON.parse(bodyText);
+    var payload = (body && body.payload) ? body.payload : {};
+
+    var sh = getTab_();
+    var json = JSON.stringify(normalizePayload_(payload));
+    sh.getRange(CELL_JSON).setValue(json);
+
+    var at = new Date().toISOString();
+    sh.getRange(CELL_AT).setValue(at);
+
+    return jsonOut({ ok:true, at: at });
+  } catch (err) {
+    return jsonOut({ ok:false, error:"put failed: " + safeErr_(err) });
+  }
+}
+
+function getTab_() {
+  var ss = openSpreadsheet_();
+  var sh = ss.getSheetByName(TAB_NAME);
+  if (!sh) sh = ss.insertSheet(TAB_NAME);
+  return sh;
+}
+
+function openSpreadsheet_() {
+  // Use URL if provided (recommended)
+  var url = String(SS_URL || "").trim();
+  if (url) return SpreadsheetApp.openByUrl(url);
+
+  // Fallback to ID
+  var id = String(SS_ID || "").trim();
+  if (!id) throw new Error("SS_URL/SS_ID are empty");
+  return SpreadsheetApp.openById(id);
+}
+
+function normalizePayload_(p) {
+  if (!p || typeof p !== "object") p = {};
+  if (!p.meta || typeof p.meta !== "object") p.meta = {};
+  if (!Array.isArray(p.customers)) p.customers = [];
+  if (!Array.isArray(p.agents)) p.agents = [{ id:"a_yuval", name:"יובל מנהל" }];
+  if (!Array.isArray(p.activity)) p.activity = [];
+  return p;
+}
+
+function jsonOut(obj) {
+  return ContentService.createTextOutput(JSON.stringify(obj))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+function safeErr_(err) {
+  try {
+    if (!err) return "unknown";
+    if (typeof err === "string") return err;
+    if (err && err.message) return err.message;
+    return String(err);
+  } catch(_) { return "unknown"; }
+}
