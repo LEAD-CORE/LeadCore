@@ -1,0 +1,818 @@
+<!DOCTYPE html>
+
+<!-- LEADUP INDEX V2 - cache buster -->
+<html dir="rtl" lang="he">
+<head>
+
+
+
+<meta charset="utf-8"/>
+<script>
+/* ===== Auth bootstrap (pre-paint) =====
+   Always start in locked state to prevent any flash of the app.
+   We unlock only after successful password in this tab/session.
+*/
+(function(){
+  document.documentElement.classList.add("authPending");
+})();
+</script>
+<script>
+  // Theme bootstrap: default to LIGHT so the UI won't "flip to black" unexpectedly.
+  (function(){
+    try{
+      const key = "leadup_theme";
+      const saved = localStorage.getItem(key);
+      const theme = (saved === "dark" || saved === "light") ? saved : "light";
+      document.documentElement.setAttribute("data-theme", theme);
+      if(saved !== theme) localStorage.setItem(key, theme);
+    }catch(e){
+      document.documentElement.setAttribute("data-theme", "light");
+    }
+  })();
+  </script>
+<meta content="width=device-width,initial-scale=1" name="viewport"/>
+<title>LEADUP • מערכת ניהול לידים v2</title>
+<meta content="#ffffff" name="theme-color"/>
+
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Hebrew:wght@400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
+
+
+
+
+
+
+
+
+<link href="app.css?v=20260201_083926" rel="stylesheet"/><script>window.__LEADUP_APP_SRC = "app.js?v=20260201_083926";</script></head>
+<body>
+<!-- ===== Simple Login Gate ===== -->
+<div class="loginGate" id="loginGate">
+<div class="loginCard">
+<div aria-hidden="true" class="loginAccent"></div>
+<div aria-hidden="true" class="bottomShine"></div>
+<div class="loginBrand">
+<div aria-hidden="true" class="loginLogo">
+<span class="dot"></span>
+<span class="ring"></span>
+</div>
+<div class="loginBrandTxt">
+<div class="loginBrandName">LEADUP</div>
+<div class="loginBrandTag">Premium CRM</div>
+</div>
+</div>
+<div class="loginTitle">כניסה למערכת</div>
+<div class="loginSub">הזן קוד כניסה כדי להמשיך</div>
+<div class="loginForm">
+<label class="loginLbl" for="loginPassword">קוד כניסה</label>
+<div class="loginInputWrap">
+<input autocomplete="one-time-code" inputmode="numeric" pattern="[0-9]*" id="loginPassword" placeholder="••••••••" type="password"/>
+<button aria-label="הצג/הסתר סיסמה" class="loginEye" id="loginToggle" type="button">👁️</button>
+</div>
+<button class="btnGold loginBtn" id="loginBtn" type="button">כניסה</button>
+<div aria-live="polite" class="loginError" id="loginError"></div>
+<div class="loginFoot">
+<span class="pill">🔒 מוגן בסיסמה</span>
+<span class="pill">✨ UI תואם מערכת</span>
+</div>
+</div>
+</div>
+</div>
+
+<script>
+/* ===== LEADUP Login (multi-user) =====
+   בסיס למערכת רב-משתמשים:
+   - הקוד שמזינים הוא PIN של משתמש (לא "סיסמה" אחת לכולם)
+   - משתמשים נשמרים ב-localStorage (ניתן לנהל אותם בתוך המערכת בהמשך)
+   - sessionStorage שומר התחברות לטאב הנוכחי
+*/
+(function(){
+  const AUTH_KEY = "leadup_auth_ok";
+  const SESSION_USER_KEY = "leadup_session_user";
+  const USERS_KEY = "leadup_users_v1";
+
+  function $(id){ return document.getElementById(id); }
+  function showErr(msg){ const e=$("loginError"); if(e) e.textContent = msg||""; }
+
+  function seedUsersIfEmpty(){
+    try{
+      const raw = localStorage.getItem(USERS_KEY);
+      const arr = raw ? JSON.parse(raw) : null;
+      if(Array.isArray(arr) && arr.length) return arr;
+
+      const admin = {
+        id: "u_admin",
+        name: "מנהל מערכת",
+        pin: "3316",
+        role: "Admin",
+        active: true,
+        createdAt: Date.now()
+      };
+      localStorage.setItem(USERS_KEY, JSON.stringify([admin]));
+      return [admin];
+    }catch(e){
+      // If localStorage blocked, still allow default admin in-memory
+      return [{
+        id:"u_admin", name:"מנהל מערכת", pin:"3316", role:"Admin", active:true, createdAt: Date.now()
+      }];
+    }
+  }
+
+  function loadUsers(){
+    try{
+      const raw = localStorage.getItem(USERS_KEY);
+      const arr = raw ? JSON.parse(raw) : null;
+      return Array.isArray(arr) ? arr : seedUsersIfEmpty();
+    }catch(e){
+      return seedUsersIfEmpty();
+    }
+  }
+
+  function saveSession(user){
+    try{
+      sessionStorage.setItem(AUTH_KEY,"1");
+      sessionStorage.setItem(SESSION_USER_KEY, JSON.stringify({
+        id: user.id, name: user.name, role: user.role
+      }));
+    }catch(e){}
+  }
+
+  function unlock(user){
+    document.documentElement.classList.remove("authPending");
+    const gate = $("loginGate"); if(gate) gate.style.display = "none";
+    saveSession(user);
+    loadAppJs();
+  }
+
+  function loadAppJs(){
+    if(window.__LEADUP_APP_LOADED) return;
+    window.__LEADUP_APP_LOADED = true;
+    const src = window.__LEADUP_APP_SRC || "app.js";
+    const s = document.createElement("script");
+    s.src = src;
+    s.defer = true;
+    s.onerror = function(){ showErr("שגיאה בטעינת המערכת (app.js)"); };
+    document.head.appendChild(s);
+  }
+
+  function attempt(){
+    const inp = $("loginPassword");
+    const val = (inp && inp.value ? inp.value : "").trim();
+    if(!val){ showErr("נא להזין קוד כניסה"); inp && inp.focus(); return; }
+
+    const users = loadUsers();
+    const user = users.find(u => u && u.active !== false && String(u.pin||"").trim() === val);
+
+    if(user){
+      showErr("");
+      unlock(user);
+      return;
+    }
+    showErr("קוד שגוי");
+    if(inp){ inp.value=""; inp.focus(); }
+  }
+
+  function wire(){
+    const btn = $("loginBtn");
+    const inp = $("loginPassword");
+    const tog = $("loginToggle");
+    if(btn) btn.onclick = attempt;
+    if(inp) inp.onkeydown = function(e){ if(e.key==="Enter"){ e.preventDefault(); attempt(); } };
+    if(tog && inp) tog.onclick = function(){ inp.type = (inp.type==="password") ? "text" : "password"; };
+  }
+
+  // if already authenticated in this tab, restore session and load app
+  try{
+    if(sessionStorage.getItem(AUTH_KEY)==="1"){
+      // ensure at least a seeded user for the app to load cleanly
+      seedUsersIfEmpty();
+      document.documentElement.classList.remove("authPending");
+      const gate = $("loginGate"); if(gate) gate.style.display = "none";
+      loadAppJs();
+      return;
+    }
+  }catch(e){}
+
+  // show gate
+  seedUsersIfEmpty();
+  document.documentElement.classList.add("authPending");
+  const gate = $("loginGate"); if(gate) gate.style.display = "flex";
+  wire();
+
+  // retry wire briefly
+  let tries=0;
+  const t=setInterval(function(){
+    tries++;
+    if($("loginBtn") && $("loginPassword")){ wire(); clearInterval(t); }
+    if(tries>20) clearInterval(t);
+  }, 100);
+})();
+</script>
+
+<div class="app">
+<aside class="side">
+<div class="brand">
+<div aria-hidden="true" class="logo"></div>
+<div>
+<h1>LEADUP</h1>
+<div class="sub">Premium CRM</div>
+</div>
+</div>
+<div class="nav" id="nav">
+<button class="active" data-view="leads">
+<span class="k">📌 לידים</span>
+<span class="pill gold" id="navCount">0</span>
+</button>
+<button data-view="myflows" id="navMyFlows" type="button">
+<span class="k">👥 הלקוחות שלי</span>
+</button>
+<button data-view="tasks">
+<span class="k">⏰ משימות</span>
+<span class="pill" id="navTasks">0</span>
+</button>
+<button data-view="proposal">
+<span class="k">🧾 יצירת הצעה</span>
+<span class="pill" id="navEvents">0</span>
+</button>
+<button data-view="esign" id="navESign" type="button">
+<span class="k">✍️ שליחה לחתימת לקוח</span>
+</button>
+<button data-view="settings">
+<span class="k">⚙️ הגדרות</span>
+<span class="pill">Local</span>
+</button>
+</div>
+<div class="sideFooter">
+<div><b>טיפ:</b> כל פעולה נפתחת בתוך חלון במערכת (מודאל) — לא נפתח חלון חיצוני.</div>
+<div class="hint">
+</div>
+</div>
+</aside>
+<main class="main">
+<div class="topbar">
+<div class="left">
+<span class="badge"><span class="dot"></span> מצב מערכת: פעיל</span>
+<span class="badge" id="greetingBadge">שלום 👋</span>
+<div class="title">
+<b id="viewTitle">לידים</b>
+<span id="viewSub">ניהול לידים, סטטוסים, פעולות ומעקב</span>
+</div>
+</div>
+<div class="right">
+<button class="btn goldSoft hideTopQuick" id="btnQuickTask">👥 הלקוחות שלי</button>
+<button class="btn goldSoft" id="btnLogout" type="button">⎋ התנתק</button>
+</div>
+</div>
+<div class="content">
+<div class="card" style="margin-bottom:14px">
+<div class="head">
+<h2>דשבורד</h2>
+</div>
+<div class="body">
+<div class="stats">
+<div class="stat">
+<div class="k">סה״כ לידים</div>
+<div class="v" id="stTotal">0</div>
+<div class="mini">במאגר</div>
+</div>
+<div class="stat">
+<div class="k">חמים</div>
+<div class="v" id="stHot">0</div>
+<div class="mini">Lead Score גבוה</div>
+</div>
+<div class="stat">
+<div class="k">מעקב היום</div>
+<div class="v" id="stToday">0</div>
+<div class="mini">Next Follow-up</div>
+</div>
+<div class="stat">
+<div class="k">משימות פתוחות</div>
+<div class="v" id="stTasks">0</div>
+<div class="mini">תזכורות</div>
+</div>
+</div>
+</div>
+</div>
+<div class="grid">
+<section class="card" id="viewLeads">
+<div class="head">
+<h2>רשימת לידים</h2>
+<div style="display:flex; gap:8px; flex-wrap:wrap">
+<select id="fStatus" style="width:170px" title="פילטר סטטוס">
+<option value="">כל הסטטוסים</option>
+<option>חדש</option>
+<option>נוצר קשר</option>
+<option>מתעניין</option>
+<option>הצעת מחיר</option>
+<option>נסגר</option>
+<option>לא רלוונטי</option>
+</select>
+<select id="fSource" style="width:170px" title="פילטר מקור">
+<option value="">כל המקורות</option>
+<option>פייסבוק</option>
+<option>גוגל</option>
+<option>הפניה</option>
+<option>טלפון</option>
+<option>אתר</option>
+<option>אחר</option>
+</select>
+<select id="sortBy" style="width:170px" title="מיון">
+<option value="hot">מיון: הכי חם</option>
+<option value="next">מיון: תאריך תאריך שיחה</option>
+<option value="newest">מיון: הכי חדש</option>
+<option value="oldest">מיון: הכי ישן</option>
+</select>
+</div>
+</div>
+<div class="body">
+<div class="tableWrap">
+<table>
+<thead>
+<tr>
+<th>שם</th>
+<th>טלפון</th>
+<th>סטטוס</th>
+<th>מקור</th>
+<th>חום (Score)</th>
+<th>תאריך שיחה</th>
+<th>פעולות</th>
+</tr>
+</thead>
+<tbody id="leadsTbody"></tbody>
+</table>
+</div>
+<div class="help" id="emptyLeads" style="display:none">
+              אין עדיין לידים. צור ליד חדש דרך תהליך אחר במערכת (למשל דרך “הלקוחות שלי”).</div>
+</div>
+</section>
+<!-- Tasks view -->
+<section class="card" id="viewTasks" style="display:none">
+<div class="head">
+<h2>משימות</h2>
+<div class="muted small">תזכורות + עדיפות + שייכות לליד</div>
+</div>
+<div class="body">
+<div class="tableWrap">
+<table style="min-width:860px">
+<thead>
+<tr>
+<th>מתי</th>
+<th>עדיפות</th>
+<th>ליד</th>
+<th>תיאור</th>
+<th>סטטוס</th>
+<th>פעולות</th>
+</tr>
+</thead>
+<tbody id="tasksTbody"></tbody>
+</table>
+</div>
+<div class="help" id="emptyTasks" style="display:none">אין משימות פתוחות.</div>
+</div>
+<!-- My Flows view -->
+<section class="card" id="viewMyFlows" style="display:none">
+<div class="head">
+<h2>הלקוחות שלי</h2>
+<div class="muted small">תבניות טיפול מהירות ללקוח: שיחה, הצעה, מסמכים ומעקב</div>
+</div>
+<div class="body">
+<div class="grid2" style="grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px">
+<div class="card mini" style="border:1px solid var(--line); border-radius:14px; padding:12px">
+<div class="muted small" style="margin-bottom:6px">פעולות מהירות</div>
+<div style="display:flex; flex-wrap:wrap; gap:8px">
+<button class="btn" id="flowCall">📞 שיחה</button>
+<button class="btn" id="flowWhatsApp">💬 וואטסאפ</button>
+<button class="btn" id="flowEmail">✉️ מייל</button>
+<button class="btn" id="flowNote">📝 הערה</button>
+</div>
+<div class="muted2 small" style="margin-top:10px">הפעולות משתמשות בלקוח שנבחר כרגע (כמו שאר המערכת).</div>
+</div>
+<div class="card mini" style="border:1px solid var(--line); border-radius:14px; padding:12px">
+<div class="muted small" style="margin-bottom:6px">תהליך טיפול</div>
+<div class="muted2 small" style="margin-bottom:10px">בחר שלב והמערכת תעדכן סטטוס/תיצור משימה/תוסיף אירוע ליצירת הצעה.</div>
+<div style="display:flex; flex-wrap:wrap; gap:8px">
+<button class="btn ghost" data-flow-step="נוצר קשר">✅ נוצר קשר</button>
+<button class="btn ghost" data-flow-step="מתעניין">🔥 מתעניין</button>
+<button class="btn ghost" data-flow-step="הצעת מחיר">💰 הצעת מחיר</button>
+<button class="btn ghost" data-flow-step="נסגר">🏁 נסגר</button>
+</div>
+</div>
+</div>
+<div class="hr" style="margin:14px 0"></div>
+<div class="muted2 small">
+              טיפ: אם תרצה, אפשר לחבר כל כפתור כאן ליצירת משימה אוטומטית (SLA), פתיחת מודאל מייל פנימי, או “תזכורת עוד X ימים”.
+            </div>
+</div>
+</section>
+</section>
+<!-- Timeline view -->
+<section class="card" id="viewTimeline" style="display:none">
+<div class="head">
+<h2>היסטוריית פעילות</h2>
+<div class="muted small">כל שינוי נשמר: מי/מתי/מה השתנה</div>
+</div>
+<div class="body">
+<div class="timeline" id="timelineList"></div>
+<div class="help" id="emptyTimeline" style="display:none">אין עדיין אירועים.</div>
+</div>
+</section>
+<!-- Settings view -->
+<section class="card" id="viewSettings" style="display:none">
+<div class="head">
+<h2>הגדרות</h2>
+<div class="muted small">חיבור Google Sheets ייכנס כאן</div>
+</div>
+<div class="body">
+<div class="miniCard">
+<h3>שמירה/איפוס</h3>
+<div class="row">
+<button class="btn" id="btnBackup" type="button">💾 יצא גיבוי JSON</button>
+<button class="btn danger" id="btnReset" type="button">🧨 איפוס כל הנתונים</button>
+</div>
+<div class="sep"></div>
+
+<h3>Google Sheets</h3>
+<div class="small muted" style="margin-bottom:10px">
+  חבר את המערכת ל־Google Sheets דרך Apps Script Web App (קריאה/כתיבה).
+</div>
+
+<div class="grid2" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:start">
+  <div class="field">
+    <label class="lbl">מצב עבודה</label>
+    <div class="row" style="gap:10px;flex-wrap:wrap">
+      <button class="btn" type="button" id="gsModeBtn">🔁 מצב: Local</button>
+      <label class="chip" style="display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:12px;border:1px solid var(--line);background:var(--panel2)">
+        <input type="checkbox" id="gsAuto" checked style="accent-color: var(--gold)"/>
+        <span class="small">סנכרון אוטומטי בשמירה</span>
+      </label>
+    </div>
+  </div>
+
+  <div class="field">
+    <label class="lbl">סטטוס חיבור</label>
+    <div class="help" id="gsStatus">לא מחובר</div>
+  </div>
+
+  <div class="field" style="grid-column:1 / -1">
+    <label class="lbl">URL של ה־Web App</label>
+    <input class="inp" id="gsUrl" placeholder="לדוגמה: https://script.google.com/macros/s/XXXX/exec" dir="ltr"/>
+    <div class="muted small" style="margin-top:6px">טיפ: להדביק את כתובת ה־/exec של הפריסה.</div>
+  </div>
+</div>
+
+<div class="row" style="margin-top:12px;gap:10px;flex-wrap:wrap">
+  <button class="btn" type="button" id="gsTest">🔌 בדוק חיבור</button>
+  <button class="btn" type="button" id="gsPull">⬇️ טען מהשיט</button>
+  <button class="btn" type="button" id="gsPush">⬆️ שמור לשיט</button>
+</div>
+
+<div class="sep"></div>
+<div class="small muted">
+  <b>הערה:</b> במצב Sheets הנתונים נטענים מהשיט. מומלץ לגבות JSON לפני מעבר מצב.
+</div>
+
+<div class="sep"></div>
+
+<h3>משתמשים והרשאות</h3>
+<div class="small muted" style="margin-bottom:10px">
+  ניהול משתמשים בסיסי (PIN לכל משתמש). רק Admin יכול לערוך משתמשים.
+</div>
+
+<div id="usersAccessMsg" class="help" style="display:none"></div>
+
+<div id="usersAdminArea" style="display:none">
+  <div class="row" style="gap:10px;flex-wrap:wrap;margin-bottom:10px">
+    <button class="btn" type="button" id="usersAddBtn">➕ הוסף משתמש</button>
+    <button class="btn" type="button" id="usersResetAdminPinBtn" title="משחזר את הקוד של מנהל מערכת ל-3316">🔁 איפוס קוד מנהל (3316)</button>
+  </div>
+
+  <div style="overflow:auto;border:1px solid var(--line);border-radius:14px">
+    <table class="table" style="min-width:520px">
+      <thead>
+        <tr>
+          <th>שם</th>
+          <th>תפקיד</th>
+          <th>PIN</th>
+          <th>סטטוס</th>
+          <th>פעולות</th>
+        </tr>
+      </thead>
+      <tbody id="usersTbody"></tbody>
+    </table>
+  </div>
+</div>
+
+</div>
+</div>
+</section>
+</div>
+</div>
+</main>
+</div>
+<!-- Modal -->
+<div aria-modal="true" class="modalBack crm-modal" id="modalBack" role="dialog">
+<div class="modal">
+<div class="modalHeader">
+<div class="modalNav">
+<button aria-label="אחורה" class="navBtn" id="modalNavBack" title="אחורה">⟵</button>
+<button aria-label="קדימה" class="navBtn" id="modalNavFwd" title="קדימה">⟶</button>
+</div>
+<b id="modalTitle">כותרת</b>
+<button class="closeX" id="modalClose" title="סגור">✕</button>
+</div>
+<div class="modalBody" id="modalBody"></div>
+</div>
+</div>
+<div aria-hidden="true" class="loader" id="loader">
+<div class="loaderCard">
+<div class="loaderRing"></div>
+<div class="loaderText">טוען…</div>
+<div class="loaderBar"><i></i></div>
+</div>
+</div>
+<div class="toast" id="toast"></div>
+
+<!-- ===== Client Dossier (internal fullscreen) ===== -->
+<div aria-labelledby="clientDossierTitle" aria-modal="true" class="modalOverlay" id="clientDossierModal" role="dialog">
+<div class="modalCard">
+<div class="modalHead">
+<div>
+<div class="title" id="clientDossierTitle">תיק לקוח</div>
+<div class="sub" id="clientDossierSub">—</div>
+</div>
+<div class="row" style="gap:10px;align-items:center">
+<button class="btnGhost" id="clientDossierAddNote" title="הוסף אירוע להיסטוריה" type="button">➕ אירוע</button>
+<button class="btnGold" id="clientDossierClose" type="button">✕ סגור</button>
+</div>
+</div>
+<div class="modalBody" style="flex-direction:column;gap:0">
+<div class="clientTabs" id="clientDossierTabs">
+<button class="tabBtn active" data-tab="overview" type="button">📌 תקציר</button>
+<button class="tabBtn" data-tab="policies" type="button">🛡️ ביטוחים</button>
+<button class="tabBtn" data-tab="docs" type="button">📄 מסמכים</button>
+<button class="tabBtn" data-tab="history" type="button">🕘 היסטוריה</button>
+</div>
+<section class="clientSection show" data-sec="overview">
+<div class="clientGrid" style="grid-template-columns: repeat(3, minmax(0, 1fr));">
+<div class="clientField"><div class="lbl">שם מלא</div><div class="val" id="cd_name">—</div></div>
+<div class="clientField"><div class="lbl">טלפון</div><div class="val" id="cd_phone">—</div></div>
+<div class="clientField"><div class="lbl">אימייל</div><div class="val" id="cd_email">—</div></div>
+<div class="clientField"><div class="lbl">נציג מטפל</div><div class="val"><span id="cd_rep">—</span> <button class="btn" id="cd_editRep" style="padding:6px 10px;border-radius:12px;margin-right:8px" type="button">ערוך</button></div></div>
+<div class="clientField"><div class="lbl">פרמיה סה״כ (חודשית)</div><div class="val" id="cd_premiumTotal">—</div></div>
+<div class="clientField"><div class="lbl">מס׳ פוליסות</div><div class="val" id="cd_policiesCount">—</div></div>
+</div>
+<div class="sep"></div>
+<div class="row" style="flex-wrap:wrap;gap:10px">
+<button class="btn goldSoft" id="cd_quickWA" type="button">💬 וואטסאפ</button>
+<button class="btn goldSoft" id="cd_quickCall" type="button">📞 התקשר</button>
+<button class="btn goldSoft" id="cd_quickMail" type="button">✉️ מייל</button>
+<div class="help" id="cd_quickHint" style="margin:0">טיפ: אם חסר טלפון/אימייל — ערוך את הלקוח במסך הלידים.</div>
+</div>
+</section>
+<section class="clientSection" data-sec="policies">
+<div class="row" style="justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+<div>
+<div style="font-weight:900">ביטוחים שרכש בסוכנות</div>
+<div class="muted small">שמור כאן סוג ביטוח, חברה ופרמיה. הפרמיה מסכמת אוטומטית לתקציר.</div>
+</div>
+<button class="btnGold" id="cd_addPolicy" type="button">➕ הוסף ביטוח</button>
+</div>
+<div class="sep"></div>
+<div class="clientList" id="cd_policiesList"></div>
+<div class="help" id="cd_policiesEmpty" style="display:none">אין עדיין ביטוחים בתיק.</div>
+</section>
+<section class="clientSection" data-sec="docs">
+<div class="row" style="justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+<div>
+<div style="font-weight:900">מסמכי לקוח</div>
+<div class="muted small">הוסף קישורים למסמכים/קבצי PDF (למשל מסמך חתום).</div>
+</div>
+<button class="btnGold" id="cd_addDoc" type="button">➕ הוסף מסמך</button>
+</div>
+<div class="sep"></div>
+<div class="clientList" id="cd_docsList"></div>
+<div class="help" id="cd_docsEmpty" style="display:none">אין עדיין מסמכים בתיק.</div>
+</section>
+<section class="clientSection" data-sec="history">
+<div class="row" style="justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+<div>
+<div style="font-weight:900">היסטוריה בתיק הלקוח</div>
+<div class="muted small">האירועים נשמרים ב״היסטוריית פעילות״ ומקושרים לליד.</div>
+</div>
+<button class="btn" id="cd_addEvent2" type="button">➕ הוסף אירוע</button>
+</div>
+<div class="sep"></div>
+<div class="clientList" id="cd_historyList"></div>
+<div class="help" id="cd_historyEmpty" style="display:none">אין עדיין אירועים ללקוח הזה.</div>
+</section>
+</div>
+</div>
+</div>
+<!-- ===== Document Viewer Modal (in-app) ===== -->
+<div aria-labelledby="docViewerTitle" aria-modal="true" class="modalOverlay" id="docViewerModal" role="dialog" style="display:none">
+<div class="modalCard" style="max-width:1100px; width:min(1100px, 96vw); height:min(82vh, 820px); display:flex; flex-direction:column;">
+<div class="modalHead">
+<div style="min-width:0">
+<div class="title" id="docViewerTitle">מסמך</div>
+<div class="sub" id="docViewerSub">צפייה בתוך המערכת</div>
+</div>
+<div class="row" style="gap:8px; flex-wrap:wrap">
+<button class="btnGhost" id="docViewerOpenNewTab" type="button">↗ פתח בטאב</button>
+<button aria-label="סגור" class="btnGhost" id="docViewerCloseBtn" type="button">✕ סגור</button>
+</div>
+</div>
+<div class="modalBody" style="flex:1; display:grid; grid-template-columns: 360px 1fr; gap:14px; overflow:hidden;">
+<div class="card" style="border:1px solid var(--line); border-radius:16px; padding:12px; overflow:auto;">
+<div class="muted small" style="margin-bottom:10px">פרטי מסמך</div>
+<label class="label" style="display:block; margin:8px 0 6px">שם מסמך</label>
+<input class="input" id="docViewerName" placeholder="שם מסמך" type="text"/>
+<label class="label" style="display:block; margin:10px 0 6px">קישור למסמך (URL)</label>
+<input class="input" id="docViewerUrl" placeholder="https://" type="url"/>
+<label class="label" style="display:block; margin:10px 0 6px">הערות/שינויים (נשמר בתיק הלקוח)</label>
+<textarea class="input" id="docViewerNote" placeholder="למשל: שינויים שבוצעו, הערות לנציג, תאריך גרסה..." style="min-height:120px; resize:vertical"></textarea>
+<div class="muted2 small" style="margin-top:10px; line-height:1.5">
+          • המסמך נפתח כאן בתוך המערכת.<br/>
+          • עריכת תוכן של PDF בתוך הדפדפן דורשת כלי עריכה ייעודי (PDF editor). כאן אפשר לשמור <b>קישור/גרסה</b> ו<b>הערות</b> בתיק הלקוח.
+        </div>
+<div class="row" style="gap:8px; margin-top:12px; flex-wrap:wrap">
+<button class="btnGold" id="docViewerSaveBtn" type="button">💾 שמור</button>
+<button class="btn" id="docViewerReloadBtn" type="button">🔄 רענן תצוגה</button>
+</div>
+</div>
+<div class="card" style="border:1px solid var(--line); border-radius:16px; overflow:hidden; display:flex; flex-direction:column;">
+<div class="row" style="justify-content:space-between; padding:10px 12px; border-bottom:1px solid var(--line);">
+<div class="muted small" id="docViewerStatus">תצוגה</div>
+<div class="muted2 small" id="docViewerWhen"></div>
+</div>
+<div style="flex:1; background:rgba(0,0,0,.06);">
+<iframe id="docViewerFrame" style="width:100%; height:100%; border:0;" title="Document Viewer"></iframe>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- ===== Proposal Builder Modal ===== -->
+<div aria-labelledby="proposalModalTitle" aria-modal="true" class="modalOverlay" id="proposalModal" role="dialog">
+<div class="modalCard">
+<div class="modalHead">
+<div>
+<div class="title" id="proposalModalTitle">יצירת הצעה</div>
+<div class="sub">בחר חברת ביטוח — ואז נטען את טופס ההצעה בתוך חלון פנימי</div>
+</div>
+<button aria-label="סגור" class="btnGhost" id="proposalCloseBtn">✕ סגור</button>
+</div>
+<div class="modalBody">
+<div class="modalLeft">
+<div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
+<div style="font-weight:800">חברות ביטוח</div>
+<button class="btnGhost" id="proposalBackBtn" style="display:none">↩ חזרה לרשימה</button>
+</div>
+<div class="companyList" id="companyList">
+<!-- שנה כאן את השמות והקישורים לטפסים שלך -->
+<button class="companyBtn" data-company="הראל" data-url="https://example.com/harel-form">
+<div>
+<div class="name">הראל</div>
+<div class="hint">טופס הצעה</div>
+</div>
+<div>›</div>
+</button>
+<button class="companyBtn" data-company="מגדל" data-url="https://example.com/migdal-form">
+<div>
+<div class="name">מגדל</div>
+<div class="hint">טופס הצעה</div>
+</div>
+<div>›</div>
+</button>
+<button class="companyBtn" data-company="כלל" data-url="clal_offer.pdf">
+<div>
+<div class="name">כלל</div>
+<div class="hint">טופס הצעה (PDF)</div>
+</div>
+<div>›</div>
+</button>
+<button class="companyBtn" data-company="הפניקס" data-url="https://example.com/phoenix-form">
+<div>
+<div class="name">הפניקס</div>
+<div class="hint">טופס הצעה</div>
+</div>
+<div>›</div>
+</button>
+<button class="companyBtn" data-company="מנורה מבטחים" data-url="https://example.com/menora-form">
+<div>
+<div class="name">מנורה מבטחים</div>
+<div class="hint">טופס הצעה</div>
+</div>
+<div>›</div>
+</button>
+</div>
+</div>
+<div class="modalRight">
+<div class="proposalTop">
+<div class="crumb" id="proposalCrumb">לא נבחרה חברה</div>
+<div style="display:flex;gap:8px;align-items:center">
+<a href="#" id="proposalOpenExternal" rel="noopener" style="display:none;color:var(--gold2);font-weight:800;text-decoration:none" target="_blank">פתח בטאב חדש</a>
+</div>
+</div>
+<div class="proposalFrame">
+<iframe id="proposalFrame" src="about:blank" title="טופס הצעה"></iframe>
+</div>
+</div>
+</div>
+<div class="modalFoot">
+<button class="btnGhost" id="proposalClearBtn">נקה</button>
+<button class="btnGold" id="proposalDoneBtn">סגור</button>
+</div>
+</div>
+</div>
+
+<!-- ===== E-Sign Modal ===== -->
+<div aria-modal="true" class="modalOverlay" id="esignModal" role="dialog">
+<div class="modalCard wide">
+<div class="modalHead">
+<div>
+<div class="title">שליחה לחתימת לקוח</div>
+<div class="sub">בחר סוג מסמך, הוסף פרטים ושלח ללקוח לחתימה (דמו)</div>
+</div>
+<button class="btnGhost" id="esignClose">✕ סגור</button>
+</div>
+<div class="modalBody" style="gap:14px">
+<div class="mirrorGrid esignGrid">
+<div class="mirrorPanel">
+<h4>סוג מסמך</h4>
+<div class="help">בחר תבנית מוכנה (אפשר לערוך טקסט לפני שליחה).</div>
+<div class="esignOptions">
+<button class="btnGhost esignOptionBtn" data-doc="health">🩺 חתימה על הצהרת בריאות</button>
+<button class="btnGhost esignOptionBtn" data-doc="cancel">🧾 חתימה לבקשה לביטול פוליסה</button>
+<button class="btnGhost esignOptionBtn" data-doc="terms">✅ חתימה לאישור תנאים</button>
+<button class="btnGhost esignOptionBtn" data-doc="agent">🧑‍💼 חתימה למינוי סוכן בפוליסה</button>
+</div>
+<div class="help" style="margin-top:10px">
+            טיפ: אחרי בחירה – ייטען טקסט התבנית בצד שמאל/הודעה, ותוכל להדביק קישור למסמך או PDF.
+          </div>
+</div>
+<div class="mirrorPreview esignPreview">
+<h4 style="margin:0">פרטי שליחה</h4>
+<label class="field">
+<span class="cap">שם המסמך להצגה</span>
+<input id="esignDocName" placeholder="לדוגמה: הצהרת בריאות / אישור תנאים" style="width:100%" type="text"/>
+</label>
+<div class="esignFetch">
+<div class="cap">שליפת לקוח (ת.ז / שם / טלפון)</div>
+<div class="row esignFetchRow">
+<div class="seg" id="esignFindType">
+<button class="segBtn active" data-type="tz" type="button">ת.ז</button>
+<button class="segBtn" data-type="name" type="button">שם</button>
+<button class="segBtn" data-type="phone" type="button">טלפון</button>
+</div>
+<input autocomplete="off" id="esignFindQ" placeholder="הקלד לחיפוש…">
+<button class="btnGold" id="esignFindBtn" type="button">שלוף</button>
+</input></div>
+<div class="hint" id="esignFindHint">ברגע שנמצא לקוח – נמלא אוטומטית את אימייל/טלפון ונציג “נבחר לקוח”.</div>
+</div>
+<label class="field">
+<span class="cap">אימייל הלקוח</span>
+<input id="esignEmail" placeholder="client@email.com" style="width:100%" type="email"/>
+</label>
+<div class="row" style="gap:10px;flex-wrap:wrap;margin-top:-2px">
+<div class="badge" style="cursor:default">ערוץ שליחה:</div>
+<label class="esignChip" style="cursor:pointer">
+<input checked="" name="esignChannel" style="margin-left:8px" type="radio" value="email"/>
+              אימייל ✉️
+            </label>
+<label class="esignChip" style="cursor:pointer">
+<input name="esignChannel" style="margin-left:8px" type="radio" value="whatsapp"/>
+              וואטסאפ 💬
+            </label>
+</div>
+<label class="field" id="esignPhoneWrap" style="display:none">
+<span class="cap">טלפון וואטסאפ של הלקוח</span>
+<input id="esignPhone" placeholder="" style="width:100%" type="tel"/>
+</label>
+<label class="field">
+<span class="cap">קישור למסמך / PDF לחתימה</span>
+<input id="esignLink" placeholder="https://...pdf או https://..." style="width:100%" type="url"/>
+</label>
+<label class="field" style="flex:1;min-height:0">
+<span class="cap">הודעה ללקוח (להדבקה/שליחה)</span>
+<textarea class="esignMsg" id="esignMsg" placeholder="טקסט שיקוף/הנחיה ללקוח…"></textarea>
+</label>
+<div style="color:var(--muted);font-size:13px">
+            בהמשך נוכל לחבר חתימה דיגיטלית אמיתית (DocuSign / PandaDoc / Google Drive / טופס חתימה).
+          </div>
+</div>
+</div>
+</div>
+<div class="modalFoot">
+<button class="btnGhost" id="esignCancel">ביטול</button>
+<button class="btnGold" id="esignSend">שלח לחתימה</button>
+</div>
+</div>
+</div>
+
+
+
+
+
+</body>
+</html>
