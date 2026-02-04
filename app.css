@@ -903,3 +903,39 @@ body{
     max-width: 92vw !important;
   }
 }
+/* ===== Rectangular (wide & compact) customer card ===== */
+
+/* make the card wider and lower */
+#customerTopCard,
+.cfInfoCard--top{
+  max-width: 1120px !important;   /* יותר רחב */
+  padding: 8px 14px !important;   /* פחות גובה */
+}
+
+/* compress the grid vertically */
+.cfDetailsGrid{
+  padding: 2px 6px !important;
+  column-gap: 32px !important;    /* יותר רוחב בין טורים */
+}
+
+/* tighter rows = פחות גובה */
+.cfLine{
+  padding: 4px 0 !important;
+}
+
+/* typography slightly smaller for height reduction */
+.cfVal{
+  font-size: 13px !important;
+  line-height: 1.05 !important;
+}
+
+.cfLab{
+  font-size: 11px !important;
+  line-height: 1.0 !important;
+}
+
+/* keep center divider short (not full height) */
+.cfDetailsGrid::after{
+  top: 6px !important;
+  bottom: 6px !important;
+}
