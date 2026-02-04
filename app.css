@@ -1143,3 +1143,5 @@ body{
 .cfLine{
   padding: 5px 0 !important;
 }
+/* FORCE customer details layout */
+#customerTopCard .cfLine { … }
