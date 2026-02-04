@@ -1,0 +1,688 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>LEAD CORE • מערכת CRM</title>
+  <meta name="theme-color" content="#eef4ff" />
+
+  <link rel="stylesheet" href="./app.css" />
+
+  <style>
+    /* Hotfix: move "new customer" button to the left side of the top bar (RTL-friendly) */
+    .topbar{ position: relative; }
+    .topbar__right{
+      position: absolute;
+      left: 16px;
+      top: 50%;
+      transform: translateY(-50%);
+    }
+    #btnNewCustomer{ white-space: nowrap; }
+    /* Show the new-customer button ONLY on dashboard */
+    #btnNewCustomer{ display: none; }
+    body.view-dashboard-active #btnNewCustomer{ display: inline-flex; }
+
+    @media (max-width: 900px){
+      .topbar__right{
+        left: 10px;
+        top: auto;
+        bottom: 10px;
+        transform: none;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="app" id="app">
+    <!-- Sidebar (left) -->
+    <aside class="sidebar" aria-label="תפריט ראשי">
+      <div class="brand">
+        <div class="brand__logo">LC</div>
+        <div class="brand__text">
+          <div class="brand__name">LEAD CORE</div>
+          <div class="brand__sub">CRM Premium</div>
+        </div>
+      </div>
+
+      <nav class="nav">
+        <button class="nav__item is-active" data-view="dashboard">
+          <span class="nav__icon">📊</span>
+          <span class="nav__label">דשבורד</span>
+        </button>
+
+        <button class="nav__item" data-view="customers">
+          <span class="nav__icon">👥</span>
+          <span class="nav__label">לקוחות</span>
+        </button>
+
+        <button class="nav__item" data-view="esign">
+          <span class="nav__icon">✍️</span>
+          <span class="nav__label">החתמת לקוח</span>
+        </button>
+
+        <button class="nav__item" data-view="settings">
+          <span class="nav__icon">⚙️</span>
+          <span class="nav__label">הגדרות מערכת</span>
+        </button>
+      </nav>
+
+      <div class="sidebar__foot">
+        <div class="pill">
+          <span class="dot" id="syncDot" aria-hidden="true"></span>
+          <span id="syncText">מצב: Google Sheets</span>
+        </div>
+        <div class="muted small" id="lastSyncText" aria-live="polite">לא סונכרן עדיין</div>
+      </div>
+    </aside>
+
+    <!-- Main -->
+    <main class="main">
+      <!-- Topbar -->
+      <header class="topbar">
+        <div class="topbar__left">
+          <div class="pageTitle">
+            <div class="pageTitle__kicker">LEAD CORE</div>
+            <h1 class="pageTitle__title" id="pageTitle">דשבורד</h1>
+          </div>
+        </div>
+
+        <div class="topbar__center only-customers">
+          <div class="search">
+            <input id="globalSearch" class="search__input" type="search" placeholder="חיפוש לקוח (שם / טלפון / ת״ז)..."  />
+            <button class="search__btn" id="btnSearch" type="button" aria-label="חיפוש">חיפוש</button>
+          </div>
+        </div>
+
+        <div class="topbar__right">
+          <button class="btn btn--primary" id="btnNewCustomer">
+            הקמת לקוח חדש במערכת
+          </button>
+        </div>
+      </header>
+
+      <!-- Content -->
+      <section class="content">
+
+        <!-- DASHBOARD -->
+        <section class="view is-visible" id="view-dashboard">
+          <div class="grid grid--kpis">
+            <div class="card kpi">
+              <div class="kpi__label">לקוחות</div>
+              <div class="kpi__value" id="kpiCustomers">0</div>
+              <div class="kpi__sub">סה״כ במערכת</div>
+            </div>
+            <div class="card kpi">
+              <div class="kpi__label">פרמיה חודשית</div>
+              <div class="kpi__value" id="kpiPremium">₪0</div>
+              <div class="kpi__sub">סכום כולל</div>
+            </div>
+            <div class="card kpi">
+              <div class="kpi__label">עודכן לאחרונה</div>
+              <div class="kpi__value" id="kpiUpdated">—</div>
+              <div class="kpi__sub">סנכרון</div>
+            </div>
+          </div>
+
+          <div class="grid grid--2">
+            <div class="card">
+              <div class="card__head">
+                <div class="card__title">פעילות אחרונה</div>
+                <div class="card__hint">דוגמא</div>
+              </div>
+              <div class="timeline" id="activityFeed">
+                <!-- injected -->
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card__head">
+                <div class="card__title">מהירויות עבודה</div>
+                <div class="card__hint">דוגמא</div>
+              </div>
+              <div class="miniStats">
+                <div class="miniStats__row">
+                  <div class="miniStats__label">יצירת לקוח</div>
+                  <div class="miniStats__bar"><span style="width:72%"></span></div>
+                  <div class="miniStats__value">מהיר</div>
+                </div>
+                <div class="miniStats__row">
+                  <div class="miniStats__label">מציאת לקוח</div>
+                  <div class="miniStats__bar"><span style="width:86%"></span></div>
+                  <div class="miniStats__value">מעולה</div>
+                </div>
+                <div class="miniStats__row">
+                  <div class="miniStats__label">סנכרון</div>
+                  <div class="miniStats__bar"><span style="width:65%"></span></div>
+                  <div class="miniStats__value">טוב</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- CUSTOMERS -->
+        <section class="view" id="view-customers">
+          <div class="card">
+            <div class="card__head">
+              <div class="card__title">רשימת לקוחות</div>
+              <div class="card__hint">לחץ על לקוח כדי לפתוח תיק</div>
+            </div>
+
+            <div class="tableWrap">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th>שם</th>
+                    <th>טלפון</th>
+                    <th>ת״ז</th>
+                    <th>פרמיה חודשית</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody id="customersTbody">
+                  <!-- injected -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- ESIGN -->
+        <section class="view" id="view-esign">
+          <div class="card">
+            <div class="card__head">
+              <div class="card__title">החתמת לקוח</div>
+              <div class="card__hint">שלב ראשון: מסך בסיס. נוסיף פה בהמשך מסמכים/חתימה.</div>
+            </div>
+            <div class="emptyState">
+              <div class="emptyState__icon">✍️</div>
+              <div class="emptyState__title">כאן נוסיף מערכת החתמה</div>
+              <div class="emptyState__text">בחירה של מסמך, שליחה ללקוח, חתימה ושמירה חזרה למערכת.</div>
+            </div>
+          </div>
+        </section>
+
+        <!-- SETTINGS -->
+        <section class="view" id="view-settings">
+          <div class="card">
+            <div class="card__head">
+              <div class="card__title">הגדרות מערכת</div>
+              <div class="card__hint">חיבור ל-Google Sheets + מצב עבודה</div>
+            </div>
+
+            <div class="formGrid">
+              <div class="field">
+                <label class="label">מצב נתונים</label>
+                <div class="pill" style="display:inline-flex; margin-top:6px">
+                  <span class="dot ok" aria-hidden="true"></span>
+                  <span>Google Sheets בלבד</span>
+                </div>
+                <div class="help">המערכת עובדת רק מול Google Sheets (Apps Script Web App). אין מצב Local בגירסה הזו.</div>
+              </div>
+
+              <div class="field">
+                <label class="label">כתובת Web App (Apps Script)</label>
+                <input class="input" id="gsUrl" type="url" placeholder="הדבק כאן את ה-URL של ה-Web App" />
+                <div class="help">לדוגמא: https://script.google.com/macros/s/XXXX/exec</div>
+              </div>
+
+              <div class="field">
+                <label class="label">פעולות</label>
+                <div class="row">
+                  <button class="btn" id="btnTestConn" type="button">בדיקת חיבור</button>
+                  <button class="btn" id="btnSyncNow" type="button">סנכרון עכשיו</button>
+                                  </div>
+                <div class="help">שמירה/טעינה מתבצעת מול ה-Web App. אם יש בעיה, בדוק Deploy והרשאות.</div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+      </section>
+    </main>
+  </div>
+
+  <!-- MODAL: New Customer -->
+  <div class="modal" id="modalCustomer" aria-hidden="true">
+    <div class="modal__backdrop" data-close="1"></div>
+    <div class="modal__panel" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <div class="modal__head">
+        <div>
+          <div class="modal__kicker">LEAD CORE</div>
+          <div class="modal__title" id="modalTitle">הקמת לקוח חדש</div>
+        </div>
+        <button class="iconBtn" data-close="1" aria-label="סגור">✕</button>
+      </div>
+
+      <form class="modal__body" id="customerForm">
+        <div class="formGrid">
+          <div class="field">
+            <label class="label"><span class="label__icon">👤</span>שם פרטי</label>
+            <input class="input" name="firstName" required />
+          </div>
+          <div class="field">
+            <label class="label"><span class="label__icon">🪪</span>שם משפחה</label>
+            <input class="input" name="lastName" required />
+          </div>
+          <div class="field">
+            <label class="label"><span class="label__icon">📞</span>טלפון</label>
+            <input class="input" name="phone" inputmode="tel" required />
+          </div>
+          <div class="field">
+            <label class="label"><span class="label__icon">🆔</span>ת״ז</label>
+            <input class="input" name="idNumber" inputmode="numeric" />
+          </div>
+
+          
+          <div class="field">
+            <label class="label"><span class="label__icon">🏠</span>כתובת</label>
+            <input class="input" name="address" autocomplete="street-address" />
+          </div>
+          <div class="field">
+            <label class="label"><span class="label__icon">✉️</span>מייל</label>
+            <input class="input" name="email" type="email" inputmode="email" autocomplete="email" />
+          </div>
+
+
+          <div class="field">
+            <label class="label"><span class="label__icon">🚬</span>עישון</label>
+            <select class="input" name="smoker">
+              <option value="">—</option>
+              <option value="כן">כן</option>
+              <option value="לא">לא</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label class="label"><span class="label__icon">🎂</span>תאריך לידה</label>
+            <input class="input" name="birthDate" type="date" />
+          </div>
+
+          <div class="field">
+            <label class="label"><span class="label__icon">💼</span>עיסוק</label>
+            <input class="input" name="occupation" placeholder="לדוגמה: נהג / מורה" />
+          </div>
+
+          <div class="field">
+            <label class="label"><span class="label__icon">📏</span>גובה (ס״מ)</label>
+            <input class="input" name="heightCm" type="number" min="0" step="1" />
+          </div>
+
+          <div class="field">
+            <label class="label"><span class="label__icon">⚖️</span>משקל (ק״ג)</label>
+            <input class="input" name="weightKg" type="number" min="0" step="1" />
+          </div>
+
+          <div class="field">
+            <label class="label"><span class="label__icon">🏥</span>קופת חולים</label>
+            <input class="input" name="hmo" placeholder="כללית / מכבי / מאוחדת / לאומית" />
+          </div>
+
+          <div class="field">
+            <label class="label"><span class="label__icon">➕</span>משלים שב״ן</label>
+            <input class="input" name="supplemental" placeholder="זהב / כסף / פלטינום וכו׳" />
+          </div>
+
+          <div class="field">
+            <label class="label"><span class="label__icon">📅</span>תאריך הנפקת ת״ז</label>
+            <input class="input" name="idIssueDate" type="date" />
+          </div>
+
+          <div class="field">
+            <label class="label"><span class="label__icon">🧑‍💼</span>נציג / סוכן מטפל</label>
+            <select class="input" name="assignedAgent" id="newAssignedAgent"></select>
+            <div class="help">נבחר בעת יצירת הלקוח (ניתן לשנות בתיק לקוח).</div>
+          </div>
+
+</div>
+
+        
+      
+        <div class="divider" style="margin-top:14px"></div>
+        <div class="row row--between" style="gap:10px">
+          <div class="muted">מלא את פרטי הלקוח ואז לחץ על "שמירה"</div>
+          <div class="row" style="gap:10px">
+            <button class="btn" type="button" data-close="1">סגור</button>
+            <button class="btn btn--primary" type="submit">שמירה</button>
+          </div>
+        </div>
+
+      </form>
+    </div>
+  </div>
+
+
+  <!-- CUSTOMER FILE: Full Screen -->
+  <div class="customerFull" id="customerFull" aria-hidden="true">
+    <div class="customerFull__backdrop" data-close="1"></div>
+
+    <div class="customerFull__panel" role="dialog" aria-modal="true" aria-labelledby="cfName">
+      <div class="customerFull__top">
+        <div class="customerFull__title">
+          <div class="customerFull__name" id="cfName">—</div>
+  <div class="customerFull__agent" id="cfAgentUnderName"></div>
+</div>
+
+        <div class="row" style="gap:10px">
+          <button class="btn btn--primary" id="btnAddPolicy" type="button">הוספת ביטוח חדש</button>
+          <button class="btn" id="btnEditCustomer" type="button">עדכון פרטי לקוח</button>
+          <button class="iconBtn" data-close="1" aria-label="סגור">✕</button>
+        </div>
+      </div>
+
+      <div class="customerFull__body">
+        <div class="cfLayout">
+          <aside class="cfSide">
+            <div class="dashCard dashCard--solid">
+              <div class="dashCard__k">פרמיה חודשית</div>
+              <div class="dashCard__v" id="cfTotalPremium">₪0</div>
+              <div class="dashCard__sub">מחושב מהביטוחים הפעילים</div>
+            </div>
+
+            <div class="dashCard dashCard--solid">
+              <div class="dashCard__k">ביטוחים פעילים</div>
+              <div class="dashCard__v" id="cfActiveCount">0</div>
+              <div class="dashCard__sub">מתוך כלל הביטוחים</div>
+            </div>
+
+            <div class="dashCard dashCard--solid">
+  <div class="dashCard__k">התהליכים שלי</div>
+  <div class="cfActionsRow" aria-label="כלים בתיק לקוח">
+    <button class="cfActionBtn" type="button" aria-label="מסמכי לקוח">
+      <span class="cfActionBtn__ico">📁</span>
+      <span class="cfActionBtn__txt">מסמכי לקוח</span>
+    </button>
+    <button class="cfActionBtn" type="button" aria-label="פתיחת משימה">
+      <span class="cfActionBtn__ico">📂➕</span>
+      <span class="cfActionBtn__txt">פתיחת משימה</span>
+    </button>
+    <button class="cfActionBtn" type="button" aria-label="הסטורית לקוח">
+      <span class="cfActionBtn__ico">🕘</span>
+      <span class="cfActionBtn__txt">הסטורית לקוח</span>
+    </button>
+  </div>
+</div>
+          </aside>
+
+          <main class="cfMain">
+            <div class="customerHeaderWide">
+  <div class="glassCard cfInfoCard cfInfoCard--top" id="customerTopCard">
+  <div class="cfInfoCard__head">
+    <div class="cfInfoCard__title">פרטי לקוח</div>
+    <div class="cfInfoCard__sub">מידע אישי ובריאותי (CRM)</div>
+  </div>
+
+  <div class="cfDetailsGrid" aria-label="פרטי לקוח">
+  <div class="cfDetailsCol">
+    <div class="cfLine"><span class="cfVal" id="cfId">—</span><span class="cfLab">ת.ז</span></div>
+    <div class="cfLine"><span class="cfVal" id="cfEmail">—</span><span class="cfLab">מייל</span></div>
+    <div class="cfLine"><span class="cfVal" id="cfAge">—</span><span class="cfLab">גיל</span></div>
+    <div class="cfLine"><span class="cfVal" id="cfHeight">—</span><span class="cfLab">גובה</span></div>
+    <div class="cfLine"><span class="cfVal" id="cfBmi">—</span><span class="cfLab">BMI</span></div>
+    <div class="cfLine"><span class="cfVal" id="cfOccupation">—</span><span class="cfLab">עיסוק</span></div>
+  </div>
+
+  <div class="cfDetailsCol">
+    <div class="cfLine"><span class="cfVal" id="cfNameLine">—</span><span class="cfLab">שם הלקוח</span></div>
+    <div class="cfLine"><span class="cfVal" id="cfPhone">—</span><span class="cfLab">טלפון</span></div>
+    <div class="cfLine"><span class="cfVal" id="cfBirthDate">—</span><span class="cfLab">תאריך הלידה</span></div>
+    <div class="cfLine"><span class="cfVal" id="cfSmoker">—</span><span class="cfLab">מעשן</span></div>
+    <div class="cfLine"><span class="cfVal" id="cfWeight">—</span><span class="cfLab">משקל</span></div>
+    <div class="cfLine"><span class="cfVal" id="cfHmo">—</span><span class="cfLab">קופת החולים</span></div>
+    <div class="cfLine"><span class="cfVal" id="cfSupplemental">—</span><span class="cfLab">משלים שב״ן</span></div>
+    <div class="cfLine"><span class="cfVal" id="cfIdIssueDate">—</span><span class="cfLab">תאריך הנפקת ת״ז</span></div>
+    <div class="cfLine"><span class="cfVal" id="cfAddress">—</span><span class="cfLab">כתובת</span></div>
+  </div>
+
+  
+</div>
+</div>
+</div>
+
+
+<section class="crmSection crmSection--policies" aria-label="הביטוחים שרכשתי בסוכנות">
+  <div class="crmSection__row">
+    <h2 class="crmSectionTitle">הביטוחים שרכשתי בסוכנות</h2>
+    <div class="crmSectionHint">מתחת מופיעים הביטוחים שנרכשו עבור הלקוח</div>
+  </div>
+</section>
+
+<div class="tableWrap policyTable">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>סוג ביטוח</th>
+                <th>חברה</th>
+                <th>פרמיה חודשית</th>
+                <th>תאריך חידוש</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="cfPoliciesTbody">
+              <!-- injected -->
+            </tbody>
+          </table>
+        </div>
+</main>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Add Policy -->
+  <div class="modal" id="modalPolicy" aria-hidden="true">
+    <div class="modal__backdrop" data-close="1"></div>
+    <div class="modal__panel" role="dialog" aria-modal="true" aria-labelledby="policyTitle">
+      <div class="modal__head">
+        <div>
+          <div class="modal__kicker">תיק לקוח</div>
+          <div class="modal__title" id="policyTitle">הוספת ביטוח</div>
+        </div>
+        <button class="iconBtn" data-close="1" aria-label="סגור">✕</button>
+      </div>
+
+      <form class="modal__body" id="policyForm">
+        <div class="formGrid">
+          <div class="field">
+            <label class="label">סוג ביטוח</label>
+            <select class="input" name="type" required>
+              <option value="">בחר</option>
+              <option>בריאות</option>
+              <option>מחלות קשות/סרטן</option>
+              <option>ריסק</option>
+              <option>ריסק משכנתא</option>
+              <option>תאונות אישיות</option>
+              <option>מדיקר</option>
+              <option>דירה</option>
+              <option>רכב</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label class="label">חברה</label>
+            <select class="input" name="company" required>
+              <option value="">בחר</option>
+              <option>הפניקס</option>
+              <option>מנורה</option>
+              <option>איילון</option>
+              <option>הראל</option>
+              <option>כלל</option>
+              <option>הכשרה</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label class="label">פרמיה חודשית</label>
+            <input class="input" name="premium" inputmode="numeric" placeholder="לדוגמה 220" required />
+          </div>
+
+          <div class="field">
+            <label class="label">תאריך חידוש</label>
+            <input class="input" name="renewAt" type="date" />
+          </div>
+        </div>
+
+        
+      
+        <div class="divider" style="margin-top:14px"></div>
+        <div class="row row--between" style="gap:10px">
+          <div class="muted">מלא את הפרטים ואז לחץ על "הוספת ביטוח"</div>
+          <div class="row" style="gap:10px">
+            <button class="btn" type="button" data-close="1">סגור</button>
+            <button class="btn btn--primary" type="submit">הוספת ביטוח</button>
+          </div>
+        </div>
+
+      </form>
+    </div>
+  </div>
+
+  <!-- DRAWER: Customer File -->
+  <div class="drawer" id="drawerCustomer" aria-hidden="true">
+    <div class="drawer__backdrop" data-close="1"></div>
+    <div class="drawer__panel" role="dialog" aria-modal="true" aria-labelledby="drawerTitle">
+      <div class="drawer__head">
+        <div>
+          <div class="drawer__kicker">תיק לקוח</div>
+          <div class="drawer__title" id="drawerTitle">—</div>
+        </div>
+        <button class="iconBtn" data-close="1" aria-label="סגור">✕</button>
+      </div>
+
+      <div class="drawer__body">
+        <div class="profile">
+          <div class="profile__card">
+            <div class="profile__label">פרמיה חודשית</div>
+            <div class="profile__value" id="drawerPremium">₪0</div>
+            <div class="profile__sub">מעודכן ללקוח</div>
+          </div>
+
+          <div class="profile__details">
+            <div class="detail">
+              <div class="detail__k">שם מלא</div>
+              <div class="detail__v" id="drawerName">—</div>
+            </div>
+            <div class="detail">
+              <div class="detail__k">טלפון</div>
+              <div class="detail__v" id="drawerPhone">—</div>
+            </div>
+            <div class="detail">
+              <div class="detail__k">ת״ז</div>
+              <div class="detail__v" id="drawerId">—</div>
+            </div>
+            <div class="detail">
+              <div class="detail__k">הערות</div>
+              <div class="detail__v" id="drawerNotes">—</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="row row--between">
+          <div class="muted">בהמשך נוסיף טאבים: מסמכים / משימות / היסטוריה / חתימות</div>
+          <button class="btn" id="btnSaveCustomer" type="button">שמירה</button>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <script src="./app.js"></script>
+
+  <!-- MODAL: Policy Action (Cancel / Swap) -->
+  <div class="modal" id="modalPolicyAction" aria-hidden="true">
+  <div class="modal__backdrop" data-close="1"></div>
+  <div class="modal__panel" role="dialog" aria-modal="true" aria-labelledby="policyActionTitle">
+    <div class="modal__head">
+      <div>
+        <div class="modal__kicker">תיק לקוח</div>
+        <div class="modal__title" id="policyActionTitle">—</div>
+        <div class="help" id="policyActionSub" style="margin-top:6px">—</div>
+      </div>
+      <button class="iconBtn" data-close="1" aria-label="סגור">✕</button>
+    </div>
+
+    <div class="modal__body" style="padding:16px">
+      <!-- CANCEL FLOW -->
+      <div id="cancelFlow" style="display:none">
+        <div class="card" style="margin-bottom:12px">
+          <div class="card__head">
+            <div class="card__title">בחירת פוליסה לביטול</div>
+            <div class="card__hint">בחר פוליסה מתוך הרשימה</div>
+          </div>
+          <div style="padding:12px 14px">
+            <div id="cancelPolicyList" class="policyPickList"><!-- injected --></div>
+            <div class="divider" style="margin:12px 0"></div>
+
+            <div class="row row--between" style="gap:10px; align-items:flex-start">
+              <div>
+                <div class="label">נבחר לביטול</div>
+                <div class="badge" id="cancelSelectedSummary">לא נבחרה פוליסה</div>
+              </div>
+              <div style="min-width:240px; flex:1">
+                <div class="field" style="gap:8px">
+                  <label class="label" for="cancelReason">סיבת ביטול</label>
+                  <textarea class="input" id="cancelReason" rows="3" placeholder="לדוגמה: יקר, כפילות, עבר לחברה אחרת..."></textarea>
+                </div>
+              </div>
+            </div>
+
+            <div class="divider" style="margin:12px 0"></div>
+
+            <div class="formGrid" style="padding:0">
+              <div class="field">
+                <label class="label" for="cancelPostponeAt">דחיית טיפול (תאריך)</label>
+                <input class="input" id="cancelPostponeAt" type="date" />
+                <div class="help">אם תמלא תאריך – תיווצר “משימה” בפעילות הלקוח (בשלב הזה זה תיעוד בלבד).</div>
+              </div>
+
+              <div class="field">
+                <label class="label" for="cancelTemplate">טופס ביטול לשליחה (בעתיד)</label>
+                <select class="input" id="cancelTemplate">
+                  <option value="">בחר טופס ביטול (לא נשלח עדיין)</option>
+                  <option>ביטול פוליסת בריאות כלל</option>
+                  <option>ביטול פוליסה בריאות הראל</option>
+                  <option>ביטול פוליסה בריאות מנורה</option>
+                  <option>ביטול פוליסה בריאות הפניקס</option>
+                  <option>ביטול פוליסה בריאות מגדל</option>
+                </select>
+                <div class="help">בשלב הבא נחבר את זה לשליחה ללקוח לחתימה.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SWAP FLOW (placeholder for future) -->
+      <div id="swapFlow" style="display:none">
+        <div class="card">
+          <div class="card__head">
+            <div class="card__title">מסך שחלוף פוליסה</div>
+            <div class="card__hint">בקרוב נוסיף כאן שדות ושחלוף מתקדם</div>
+          </div>
+          <div style="padding:14px">
+            <div class="muted">המסך הזה הוכן במיוחד כדי שנוכל לבנות עליו בהמשך (ללא שינוי לוגיקת סנכרון).</div>
+          </div>
+        </div>
+      </div>
+
+    <div class="modal__foot" style="padding:0 16px 16px">
+      <div class="row row--between" style="gap:10px">
+        <button class="btn btn--danger" id="btnPolicyActionConfirm" type="button">אישור ביטול</button>
+        <button class="btn" type="button" data-close="1">סגור</button>
+      </div>
+    </div>
+    </div>
+
+    
+  </div>
+</div>
+
+      
+    </div>
+  </div>
+
+</body>
+</html>
