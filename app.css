@@ -1175,3 +1175,14 @@ body{
   width: 10%;
   text-align: left; /* action column at far left in RTL */
 }
+/* ===== Glass עדין לאזור הביטוחים בלבד ===== */
+
+#customerFull .policies-glass {
+  background: rgba(255,255,255,0.65);
+  backdrop-filter: blur(10px);
+  border-radius: 18px;
+  border: 1px solid rgba(255,255,255,0.5);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.05);
+  padding: 18px 22px;
+  margin-top: 18px;
+}
