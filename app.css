@@ -1193,3 +1193,60 @@ body{
 .btn--ctaPremium:active{
   transform: translateY(0);
 }
+.saveOverlay{
+  position:fixed;
+  inset:0;
+  background:rgba(10,15,25,0.55);
+  backdrop-filter:blur(6px);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  opacity:0;
+  pointer-events:none;
+  transition:0.3s;
+  z-index:9999;
+}
+
+.saveOverlay.is-open{
+  opacity:1;
+  pointer-events:auto;
+}
+
+.saveOverlay__panel{
+  background:#fff;
+  padding:34px 46px;
+  border-radius:18px;
+  text-align:center;
+  box-shadow:0 25px 80px rgba(0,0,0,0.25);
+}
+
+.saveOverlay__spinner{
+  width:48px;
+  height:48px;
+  border:4px solid #e3e8ff;
+  border-top:4px solid #3b5cff;
+  border-radius:50%;
+  margin:0 auto 14px;
+  animation:spin 0.9s linear infinite;
+}
+
+@keyframes spin{
+  to{ transform:rotate(360deg); }
+}
+
+.saveOverlay__title{
+  font-weight:900;
+  font-size:18px;
+}
+
+.saveOverlay__sub{
+  margin-top:6px;
+  color:#666;
+}
+
+.saveOverlay__timer{
+  margin-top:10px;
+  font-size:22px;
+  font-weight:800;
+  color:#3b5cff;
+}
