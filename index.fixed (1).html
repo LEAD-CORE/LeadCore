@@ -1,0 +1,886 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>LEAD CORE • מערכת CRM</title>
+  <meta name="theme-color" content="#eef4ff" />
+
+  <link rel="stylesheet" href="./app.css" />
+
+  <style>
+    /* Hotfix: move "new customer" button to the left side of the top bar (RTL-friendly) */
+    .topbar{ position: relative; }
+    .topbar__right{
+      position: absolute;
+      left: 16px;
+      top: 50%;
+      transform: translateY(-50%);
+    }
+    #btnNewCustomer{ white-space: nowrap; }
+    /* Show the new-customer button ONLY on dashboard */
+    #btnNewCustomer{ display: inline-flex; }
+    /* Hide the new-customer button outside dashboard once views are active */
+    body.view-customers-active #btnNewCustomer,
+    body.view-esign-active #btnNewCustomer,
+    body.view-settings-active #btnNewCustomer,
+    body.view-myflow-active #btnNewCustomer,
+    body.view-users-active #btnNewCustomer{ display: none; }
+    body.view-dashboard-active #btnNewCustomer{ display: inline-flex; }
+
+    @media (max-width: 900px){
+      .topbar__right{
+        left: 10px;
+        top: auto;
+        bottom: 10px;
+        transform: none;
+      }
+    }
+
+    /* Hotfix: place "מחובר" pill in top-center (as marked) */
+    .topbar{ position: relative; }
+    #lcUserPill{
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 6;
+    }
+
+    @media (max-width: 900px){
+      #lcUserPill{
+        position: static;
+        transform: none;
+        margin: 10px auto 0;
+      }
+    }
+
+
+  </style>
+</head>
+
+<body class="lcAuthLock">
+  <!-- Login Overlay (Premium) -->
+  <div class="lcLogin" id="lcLogin" aria-hidden="true">
+    <div class="lcLogin__card" role="dialog" aria-modal="true" aria-label="כניסה למערכת">
+      <div class="lcLogin__brand">
+        <div class="lcLogin__logo" aria-hidden="true">LC</div>
+        <div class="lcLogin__brandText">
+          <div class="lcLogin__brandName">LEAD CORE</div>
+          <div class="lcLogin__brandSub">CRM Premium</div>
+        </div>
+      </div>
+
+      <div class="lcLogin__title">כניסה למערכת</div>
+      <div class="lcLogin__hint">הזן שם משתמש וקוד כניסה</div>
+
+      <form id="lcLoginForm" class="lcLogin__form" autocomplete="off">
+        <label class="lcLogin__label">שם משתמש</label>
+        <input id="lcLoginUser" name="username" class="lcLogin__input" placeholder="לדוגמה: מנהל מערכת / סתיו" />
+
+        <label class="lcLogin__label">קוד כניסה (PIN)</label>
+        <input id="lcLoginPin" name="pin" class="lcLogin__input" inputmode="numeric" placeholder="••••" />
+
+        <label class="lcLogin__remember">
+          <input id="lcLoginRemember" type="checkbox" />
+          <span>זכור אותי במחשב הזה</span>
+        </label>
+
+        <button class="lcLogin__btn" type="submit">התחבר</button>
+        <div id="lcLoginError" class="lcLogin__error" aria-live="polite"></div>
+      </form>
+
+      <div class="lcLogin__foot">שכחת קוד? פנה למנהל המערכת</div>
+    </div>
+  </div>
+
+  <div class="app" id="app">
+    <!-- Sidebar (left) -->
+    <aside class="sidebar" aria-label="תפריט ראשי">
+      <div class="brand">
+        <div class="brand__logo">LC</div>
+        <div class="brand__text">
+          <div class="brand__name">LEAD CORE</div>
+          <div class="brand__sub">CRM Premium</div>
+        </div>
+      </div>
+
+      <nav class="nav">
+        <button class="nav__item is-active" data-view="dashboard">
+          <span class="nav__icon">📊</span>
+          <span class="nav__label">דשבורד</span>
+        </button>
+
+        <button class="nav__item" data-view="customers">
+          <span class="nav__icon">👥</span>
+          <span class="nav__label">לקוחות</span>
+        </button>
+
+        <button class="nav__item" data-view="myflow">
+          <span class="nav__icon">⭐</span>
+          <span class="nav__label">התהליכים שלי</span>
+        </button>
+
+        <button class="nav__item" data-view="esign">
+          <span class="nav__icon">✍️</span>
+          <span class="nav__label">החתמת לקוח</span>
+        </button>
+
+        <button class="nav__item" data-view="settings">
+          <span class="nav__icon">⚙️</span>
+          <span class="nav__label">הגדרות מערכת</span>
+        </button>
+
+        <button class="nav__item" data-view="users" id="navUsers" style="display:none">
+          <span class="nav__icon">👥</span>
+          <span class="nav__label">ניהול משתמשים</span>
+        </button>
+      </nav>
+
+      <div class="sidebar__foot">
+        <div class="pill">
+          <span class="dot" id="syncDot" aria-hidden="true"></span>
+          <span id="syncText">מצב: Google Sheets</span>
+        </div>
+        <div class="muted small" id="lastSyncText" aria-live="polite">לא סונכרן עדיין</div>
+      </div>
+    </aside>
+
+    <!-- Main -->
+    <main class="main">
+      <!-- Topbar -->
+      <header class="topbar">
+        <div class="topbar__left">
+          <div class="pageTitle">
+            <div class="pageTitle__kicker">LEAD CORE</div>
+            <h1 class="pageTitle__title" id="pageTitle">דשבורד</h1>
+          </div>
+        </div>
+
+        <div class="topbar__center only-customers">
+          <div class="search">
+            <input id="globalSearch" class="search__input" type="search" placeholder="חיפוש לקוח (שם / טלפון / ת״ז)..."  />
+            <button class="search__btn" id="btnSearch" type="button" aria-label="חיפוש">חיפוש</button>
+          </div>
+        </div>
+
+        <div class="lcUserPill" id="lcUserPill" style="display:none;">
+            <span class="lcUserPill__dot" aria-hidden="true"></span>
+            <span class="lcUserPill__text" id="lcUserPillText">מחובר</span>
+            <button class="lcUserPill__btn" id="btnLogout" type="button">התנתק</button>
+          </div>
+
+        <div class="topbar__right">
+          <button class="btn btn--primary" id="btnNewCustomer">
+            הקמת לקוח חדש במערכת
+          </button>
+        </div>
+      </header>
+
+      <!-- Content -->
+      <section class="content">
+
+        <!-- DASHBOARD -->
+        <section class="view is-visible" id="view-dashboard">
+          <div class="grid grid--kpis">
+            <div class="card kpi">
+              <div class="kpi__label">לקוחות</div>
+              <div class="kpi__value" id="kpiCustomers">0</div>
+              <div class="kpi__sub">סה״כ במערכת</div>
+            </div>
+            <div class="card kpi">
+              <div class="kpi__label">פרמיה חודשית</div>
+              <div class="kpi__value" id="kpiPremium">₪0</div>
+              <div class="kpi__sub">סכום כולל</div>
+            </div>
+            <div class="card kpi">
+              <div class="kpi__label">עודכן לאחרונה</div>
+              <div class="kpi__value" id="kpiUpdated">—</div>
+              <div class="kpi__sub">סנכרון</div>
+            </div>
+          </div>
+
+          <div class="grid grid--2">
+            <div class="card">
+              <div class="card__head">
+                <div class="card__title">פעילות אחרונה</div>
+                <div class="card__hint">דוגמא</div>
+              </div>
+              <div class="timeline" id="activityFeed">
+                <!-- injected -->
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card__head">
+                <div class="card__title">מהירויות עבודה</div>
+                <div class="card__hint">דוגמא</div>
+              </div>
+              <div class="miniStats">
+                <div class="miniStats__row">
+                  <div class="miniStats__label">יצירת לקוח</div>
+                  <div class="miniStats__bar"><span style="width:72%"></span></div>
+                  <div class="miniStats__value">מהיר</div>
+                </div>
+                <div class="miniStats__row">
+                  <div class="miniStats__label">מציאת לקוח</div>
+                  <div class="miniStats__bar"><span style="width:86%"></span></div>
+                  <div class="miniStats__value">מעולה</div>
+                </div>
+                <div class="miniStats__row">
+                  <div class="miniStats__label">סנכרון</div>
+                  <div class="miniStats__bar"><span style="width:65%"></span></div>
+                  <div class="miniStats__value">טוב</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- CUSTOMERS -->
+        <section class="view" id="view-customers">
+          <div class="card">
+            <div class="card__head">
+              <div class="card__title">רשימת לקוחות</div>
+              <div class="card__hint">לחץ על לקוח כדי לפתוח תיק</div>
+            </div>
+
+            <div class="tableWrap">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th>שם</th>
+                    <th>טלפון</th>
+                    <th>ת״ז</th>
+                    <th>פרמיה חודשית</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody id="customersTbody">
+                  <!-- injected -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- MY FLOW -->
+        <section class="view" id="view-myflow">
+          <div class="card">
+            <div class="card__head lcMyFlowHead">
+              <div>
+                <div class="card__title">התהליכים שלי</div>
+                <div class="card__hint">כאן תראה לקוחות משוייכים לפי נציג + התראות SLA</div>
+              </div>
+
+              <div class="lcMyFlowControls" aria-label="סינון התהליכים">
+                <div class="lcMyFlowAgent">
+                  <label class="label" style="margin:0">נציג</label>
+                  <select class="input" id="myFlowAgent" aria-label="בחירת נציג"></select>
+                </div>
+
+                <div class="lcMyFlowChips" role="tablist" aria-label="סינון לפי SLA">
+                  <button type="button" class="lcChip is-active" data-sla="all">הכל</button>
+                  <button type="button" class="lcChip" data-sla="red">חורג</button>
+                  <button type="button" class="lcChip" data-sla="amber">היום</button>
+                  <button type="button" class="lcChip" data-sla="green">עתידי</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="lcMyFlowCards" id="myFlowCards" aria-live="polite"></div>
+          </div>
+        </section>
+
+        <!-- ESIGN -->
+        <section class="view" id="view-esign">
+          <div class="card">
+            <div class="card__head">
+              <div class="card__title">החתמת לקוח</div>
+              <div class="card__hint">שלב ראשון: מסך בסיס. נוסיף פה בהמשך מסמכים/חתימה.</div>
+            </div>
+            <div class="emptyState">
+              <div class="emptyState__icon">✍️</div>
+              <div class="emptyState__title">כאן נוסיף מערכת החתמה</div>
+              <div class="emptyState__text">בחירה של מסמך, שליחה ללקוח, חתימה ושמירה חזרה למערכת.</div>
+            </div>
+          </div>
+        </section>
+
+        <!-- SETTINGS -->
+        <section class="view" id="view-settings">
+          <div class="card">
+            <div class="card__head">
+              <div class="card__title">הגדרות מערכת</div>
+              <div class="card__hint">חיבור ל-Google Sheets + מצב עבודה</div>
+            </div>
+
+            <div class="formGrid">
+              <div class="field">
+                <label class="label">מצב נתונים</label>
+                <div class="pill" style="display:inline-flex; margin-top:6px">
+                  <span class="dot ok" aria-hidden="true"></span>
+                  <span>Google Sheets בלבד</span>
+                </div>
+                <div class="help">המערכת עובדת רק מול Google Sheets (Apps Script Web App). אין מצב Local בגירסה הזו.</div>
+              </div>
+
+              <div class="field">
+                <label class="label">כתובת Web App (Apps Script)</label>
+                <input class="input" id="gsUrl" type="url" placeholder="הדבק כאן את ה-URL של ה-Web App" />
+                <div class="help">לדוגמא: https://script.google.com/macros/s/XXXX/exec</div>
+              </div>
+
+              <div class="field">
+                <label class="label">פעולות</label>
+                <div class="row">
+                  <button class="btn" id="btnTestConn" type="button">בדיקת חיבור</button>
+                  <button class="btn" id="btnSyncNow" type="button">סנכרון עכשיו</button>
+                                  </div>
+                <div class="help">שמירה/טעינה מתבצעת מול ה-Web App. אם יש בעיה, בדוק Deploy והרשאות.</div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- USERS (Admin only) -->
+        <section class="view" id="view-users">
+          <div class="card">
+            <div class="card__head">
+              <div class="card__title">ניהול משתמשים</div>
+              <div class="card__hint">הוספה/עריכה/השבתה של נציגים וסוכנים</div>
+            </div>
+
+            <div class="lcUsers__actions">
+              <button class="btn" id="btnAddUser" type="button">➕ הוסף נציג/סוכן</button>
+              <input class="input lcUsers__search" id="usersSearch" type="text" placeholder="חיפוש לפי שם…" />
+              <select class="input lcUsers__filter" id="usersFilter">
+                <option value="all">הכל</option>
+                <option value="active">פעילים</option>
+                <option value="disabled">מושבתים</option>
+              </select>
+            </div>
+
+            <div class="tableWrap">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th>שם</th>
+                    <th>תפקיד</th>
+                    <th>סטטוס</th>
+                    <th style="width:220px">פעולות</th>
+                  </tr>
+                </thead>
+                <tbody id="usersTbody"></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+      </section>
+    </main>
+  </div>
+
+  <!-- MODAL: New Customer -->
+  <div class="modal" id="modalCustomer" aria-hidden="true">
+    <div class="modal__backdrop" data-close="1"></div>
+    <div class="modal__panel" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <div class="modal__head">
+        <div>
+          <div class="modal__kicker">LEAD CORE</div>
+          <div class="modal__title" id="modalTitle">הקמת לקוח חדש</div>
+        </div>
+        <button class="iconBtn" data-close="1" aria-label="סגור">✕</button>
+      </div>
+
+      <form class="modal__body" id="customerForm">
+      <div class="lcFormTop">
+        <div class="lcProgress" aria-label="התקדמות מילוי">
+          <div class="lcProgress__track">
+            <div class="lcProgress__bar" id="custProgressBar" style="width:0%"></div>
+          </div>
+          <div class="lcProgress__text" id="custProgressText">השלמה: 0%</div>
+        </div>
+
+        <div class="lcTabs" role="tablist" aria-label="שלבים בהקמת לקוח">
+          <button type="button" class="lcTab is-active" data-step="1" role="tab" aria-selected="true">פרטים</button>
+          <button type="button" class="lcTab" data-step="2" role="tab" aria-selected="false">יצירת קשר</button>
+          <button type="button" class="lcTab" data-step="3" role="tab" aria-selected="false">פרופיל</button>
+          <button type="button" class="lcTab" data-step="4" role="tab" aria-selected="false">שיוך</button>
+        </div>
+      </div>
+
+      <div class="lcFormScroll" id="custSteps">
+        <section class="lcStep is-active" data-step="1" aria-label="פרטים">
+        <div class="formGrid">
+<div class="field">
+            <label class="label">שם פרטי</label>
+            <input class="input" name="firstName" required />
+          </div>
+<div class="field">
+            <label class="label">שם משפחה</label>
+            <input class="input" name="lastName" required />
+          </div>
+<div class="field">
+            <label class="label">ת״ז</label>
+            <input class="input" name="idNumber" inputmode="numeric" />
+          </div>
+<div class="field">
+            <label class="label">תאריך לידה</label>
+            <input class="input" name="birthDate" type="date" />
+          </div>
+        </div>
+      </section>
+        <section class="lcStep" data-step="2" aria-label="יצירת קשר">
+        <div class="formGrid">
+<div class="field">
+            <label class="label">טלפון</label>
+            <input class="input" name="phone" inputmode="tel" required />
+          </div>
+<div class="field">
+            <label class="label">מייל</label>
+            <input class="input" name="email" type="email" inputmode="email" autocomplete="email" />
+          </div>
+<div class="field">
+            <label class="label">כתובת</label>
+            <input class="input" name="address" autocomplete="street-address" />
+          </div>
+        </div>
+      </section>
+        <section class="lcStep" data-step="3" aria-label="פרופיל">
+        <div class="formGrid">
+<div class="field">
+            <label class="label">עישון</label>
+            <select class="input" name="smoker">
+              <option value="">—</option>
+              <option value="כן">כן</option>
+              <option value="לא">לא</option>
+            </select>
+          </div>
+<div class="field">
+            <label class="label">עיסוק</label>
+            <input class="input" name="occupation" placeholder="לדוגמה: נהג / מורה" />
+          </div>
+<div class="field">
+            <label class="label">גובה (ס״מ)</label>
+            <input class="input" name="heightCm" type="number" min="0" step="1" />
+          </div>
+<div class="field">
+            <label class="label">משקל (ק״ג)</label>
+            <input class="input" name="weightKg" type="number" min="0" step="1" />
+          </div>
+<div class="field">
+            <label class="label">קופת חולים</label>
+            <input class="input" name="hmo" placeholder="כללית / מכבי / מאוחדת / לאומית" />
+          </div>
+<div class="field">
+            <label class="label">משלים שב״ן</label>
+            <input class="input" name="supplemental" placeholder="זהב / כסף / פלטינום וכו׳" />
+          </div>
+<div class="field">
+            <label class="label">תאריך הנפקת ת״ז</label>
+            <input class="input" name="idIssueDate" type="date" />
+          </div>
+        </div>
+      </section>
+        <section class="lcStep" data-step="4" aria-label="שיוך">
+        <div class="formGrid">
+<div class="field">
+            <label class="label">נציג / סוכן מטפל</label>
+            <select class="input" name="assignedAgent" id="newAssignedAgent"></select>
+            <div class="help">נבחר בעת יצירת הלקוח (ניתן לשנות בתיק לקוח).</div>
+        </div>
+      </section>
+      </div>
+
+      <div class="lcStickyFooter">
+        <div class="lcHint muted">מלא את הפרטים וסיים עם “שמירה”. אפשר לעבור שלבים עם “הבא/חזרה”.</div>
+        <div class="lcFooterBtns">
+          <button class="btn" type="button" id="custPrevBtn">חזרה</button>
+          <button class="btn" type="button" id="custNextBtn">הבא</button>
+          <span class="lcFooterSep"></span>
+          <button class="btn" type="button" data-close="1">סגור</button>
+          <button class="btn btn--primary" type="submit">שמירה</button>
+        </div>
+      </div>
+
+
+      </form>
+    </div>
+  </div>
+
+
+  <!-- CUSTOMER FILE: Full Screen -->
+  <div class="customerFull" id="customerFull" aria-hidden="true">
+    <div class="customerFull__backdrop" data-close="1"></div>
+
+    <div class="customerFull__panel" role="dialog" aria-modal="true" aria-labelledby="cfName">
+      <div class="customerFull__top">
+        <div class="customerFull__title">
+          <div class="customerFull__name" id="cfName">—</div>
+</div>
+
+        <div class="row" style="gap:10px">
+          <button class="btn btn--primary" id="btnAddPolicy" type="button">הוספת ביטוח חדש</button>
+          <button class="btn" id="btnEditCustomer" type="button">עדכון פרטי לקוח</button>
+          <button class="iconBtn" data-close="1" aria-label="סגור">✕</button>
+        </div>
+      </div>
+
+      <div class="customerFull__body">
+        <div class="cfLayout">
+          <aside class="cfSide">
+            <div class="dashCard dashCard--solid">
+              <div class="dashCard__k">פרמיה חודשית</div>
+              <div class="dashCard__v" id="cfTotalPremium">₪0</div>
+              <div class="dashCard__sub">מחושב מהביטוחים הפעילים</div>
+            </div>
+
+            <div class="dashCard dashCard--solid">
+              <div class="dashCard__k">ביטוחים פעילים</div>
+              <div class="dashCard__v" id="cfActiveCount">0</div>
+              <div class="dashCard__sub">מתוך כלל הביטוחים</div>
+            </div>
+
+            <div class="dashCard dashCard--solid">
+              <div class="dashCard__k">נציג מטפל</div>
+              <div style="margin-top:8px">
+                <select class="input" id="cfAgentSelect" aria-label="נציג מטפל"></select>
+              </div>
+              <div class="dashCard__sub">שיוך לפי נציגים</div>
+            </div>
+          </aside>
+
+          <main class="cfMain">
+            <div class="customerHeaderWide">
+  <div class="glassCard cfInfoCard cfInfoCard--top" id="customerTopCard">
+  <div class="cfInfoCard__head">
+    <div class="cfInfoCard__title">פרטי לקוח</div>
+    <div class="cfInfoCard__sub">מידע אישי ובריאותי (CRM)</div>
+  </div>
+
+  <div class="cfDetailsGrid" aria-label="פרטי לקוח">
+  <div class="cfDetailsCol">
+    <div class="cfLine"><span class="cfVal" id="cfId">—</span><span class="cfLab">ת.ז</span></div>
+    <div class="cfLine"><span class="cfVal" id="cfEmail">—</span><span class="cfLab">מייל</span></div>
+    <div class="cfLine"><span class="cfVal" id="cfAge">—</span><span class="cfLab">גיל</span></div>
+    <div class="cfLine"><span class="cfVal" id="cfHeight">—</span><span class="cfLab">גובה</span></div>
+    <div class="cfLine"><span class="cfVal" id="cfBmi">—</span><span class="cfLab">BMI</span></div>
+    <div class="cfLine"><span class="cfVal" id="cfOccupation">—</span><span class="cfLab">עיסוק</span></div>
+  </div>
+
+  <div class="cfDetailsCol">
+    <div class="cfLine"><span class="cfVal" id="cfNameLine">—</span><span class="cfLab">שם הלקוח</span></div>
+    <div class="cfLine"><span class="cfVal" id="cfPhone">—</span><span class="cfLab">טלפון</span></div>
+    <div class="cfLine"><span class="cfVal" id="cfBirthDate">—</span><span class="cfLab">תאריך הלידה</span></div>
+    <div class="cfLine"><span class="cfVal" id="cfSmoker">—</span><span class="cfLab">מעשן</span></div>
+    <div class="cfLine"><span class="cfVal" id="cfWeight">—</span><span class="cfLab">משקל</span></div>
+    <div class="cfLine"><span class="cfVal" id="cfHmo">—</span><span class="cfLab">קופת החולים</span></div>
+    <div class="cfLine"><span class="cfVal" id="cfSupplemental">—</span><span class="cfLab">משלים שב״ן</span></div>
+    <div class="cfLine"><span class="cfVal" id="cfIdIssueDate">—</span><span class="cfLab">תאריך הנפקת ת״ז</span></div>
+    <div class="cfLine"><span class="cfVal" id="cfAddress">—</span><span class="cfLab">כתובת</span></div>
+  </div>
+
+  
+</div>
+</div>
+</div>
+
+
+<section class="crmSection crmSection--policies" aria-label="הביטוחים שרכשתי בסוכנות">
+  <div class="crmSection__row">
+    <h2 class="crmSectionTitle">הביטוחים שרכשתי בסוכנות</h2>
+    <div class="crmSectionHint">מתחת מופיעים הביטוחים שנרכשו עבור הלקוח</div>
+  </div>
+</section>
+
+<div class="tableWrap policyTable">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>סוג ביטוח</th>
+                <th>חברה</th>
+                <th>פרמיה חודשית</th>
+                <th>תאריך חידוש</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="cfPoliciesTbody">
+              <!-- injected -->
+            </tbody>
+          </table>
+        </div>
+</main>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Add Policy -->
+  <div class="modal" id="modalPolicy" aria-hidden="true">
+    <div class="modal__backdrop" data-close="1"></div>
+    <div class="modal__panel" role="dialog" aria-modal="true" aria-labelledby="policyTitle">
+      <div class="modal__head">
+        <div>
+          <div class="modal__kicker">תיק לקוח</div>
+          <div class="modal__title" id="policyTitle">הוספת ביטוח</div>
+        </div>
+        <button class="iconBtn" data-close="1" aria-label="סגור">✕</button>
+      </div>
+
+      <form class="modal__body" id="policyForm">
+        <div class="formGrid">
+          <div class="field">
+            <label class="label">סוג ביטוח</label>
+            <select class="input" name="type" required>
+              <option value="">בחר</option>
+              <option>בריאות</option>
+              <option>מחלות קשות/סרטן</option>
+              <option>ריסק</option>
+              <option>ריסק משכנתא</option>
+              <option>תאונות אישיות</option>
+              <option>מדיקר</option>
+              <option>דירה</option>
+              <option>רכב</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label class="label">חברה</label>
+            <select class="input" name="company" required>
+              <option value="">בחר</option>
+              <option>הפניקס</option>
+              <option>מנורה</option>
+              <option>איילון</option>
+              <option>הראל</option>
+              <option>כלל</option>
+              <option>הכשרה</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label class="label">פרמיה חודשית</label>
+            <input class="input" name="premium" inputmode="numeric" placeholder="לדוגמה 220" required />
+          </div>
+
+          <div class="field">
+            <label class="label">תאריך חידוש</label>
+            <input class="input" name="renewAt" type="date" />
+          </div>
+        </div>
+
+        
+      
+        <div class="divider" style="margin-top:14px"></div>
+        <div class="row row--between" style="gap:10px">
+          <div class="muted">מלא את הפרטים ואז לחץ על "הוספת ביטוח"</div>
+          <div class="row" style="gap:10px">
+            <button class="btn" type="button" data-close="1">סגור</button>
+            <button class="btn btn--primary" type="submit">הוספת ביטוח</button>
+          </div>
+        </div>
+
+      </form>
+    </div>
+  </div>
+
+  <!-- DRAWER: Customer File -->
+  <div class="drawer" id="drawerCustomer" aria-hidden="true">
+    <div class="drawer__backdrop" data-close="1"></div>
+    <div class="drawer__panel" role="dialog" aria-modal="true" aria-labelledby="drawerTitle">
+      <div class="drawer__head">
+        <div>
+          <div class="drawer__kicker">תיק לקוח</div>
+          <div class="drawer__title" id="drawerTitle">—</div>
+        </div>
+        <button class="iconBtn" data-close="1" aria-label="סגור">✕</button>
+      </div>
+
+      <div class="drawer__body">
+        <div class="profile">
+          <div class="profile__card">
+            <div class="profile__label">פרמיה חודשית</div>
+            <div class="profile__value" id="drawerPremium">₪0</div>
+            <div class="profile__sub">מעודכן ללקוח</div>
+          </div>
+
+          <div class="profile__details">
+            <div class="detail">
+              <div class="detail__k">שם מלא</div>
+              <div class="detail__v" id="drawerName">—</div>
+            </div>
+            <div class="detail">
+              <div class="detail__k">טלפון</div>
+              <div class="detail__v" id="drawerPhone">—</div>
+            </div>
+            <div class="detail">
+              <div class="detail__k">ת״ז</div>
+              <div class="detail__v" id="drawerId">—</div>
+            </div>
+            <div class="detail">
+              <div class="detail__k">הערות</div>
+              <div class="detail__v" id="drawerNotes">—</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="row row--between">
+          <div class="muted">בהמשך נוסיף טאבים: מסמכים / משימות / היסטוריה / חתימות</div>
+          <button class="btn" id="btnSaveCustomer" type="button">שמירה</button>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <script src="./app.js"></script>
+
+  <!-- MODAL: Policy Action (Cancel / Swap) -->
+  <div class="modal" id="modalPolicyAction" aria-hidden="true">
+  <div class="modal__backdrop" data-close="1"></div>
+  <div class="modal__panel" role="dialog" aria-modal="true" aria-labelledby="policyActionTitle">
+    <div class="modal__head">
+      <div>
+        <div class="modal__kicker">תיק לקוח</div>
+        <div class="modal__title" id="policyActionTitle">—</div>
+        <div class="help" id="policyActionSub" style="margin-top:6px">—</div>
+      </div>
+      <button class="iconBtn" data-close="1" aria-label="סגור">✕</button>
+    </div>
+
+    <div class="modal__body" style="padding:16px">
+      <!-- CANCEL FLOW -->
+      <div id="cancelFlow" style="display:none">
+        <div class="card" style="margin-bottom:12px">
+          <div class="card__head">
+            <div class="card__title">בחירת פוליסה לביטול</div>
+            <div class="card__hint">בחר פוליסה מתוך הרשימה</div>
+          </div>
+          <div style="padding:12px 14px">
+            <div id="cancelPolicyList" class="policyPickList"><!-- injected --></div>
+            <div class="divider" style="margin:12px 0"></div>
+
+            <div class="row row--between" style="gap:10px; align-items:flex-start">
+              <div>
+                <div class="label">נבחר לביטול</div>
+                <div class="badge" id="cancelSelectedSummary">לא נבחרה פוליסה</div>
+              </div>
+              <div style="min-width:240px; flex:1">
+                <div class="field" style="gap:8px">
+                  <label class="label" for="cancelReason">סיבת ביטול</label>
+                  <textarea class="input" id="cancelReason" rows="3" placeholder="לדוגמה: יקר, כפילות, עבר לחברה אחרת..."></textarea>
+                </div>
+              </div>
+            </div>
+
+            <div class="divider" style="margin:12px 0"></div>
+
+            <div class="formGrid" style="padding:0">
+              <div class="field">
+                <label class="label" for="cancelPostponeAt">דחיית טיפול (תאריך)</label>
+                <input class="input" id="cancelPostponeAt" type="date" />
+                <div class="help">אם תמלא תאריך – תיווצר “משימה” בפעילות הלקוח (בשלב הזה זה תיעוד בלבד).</div>
+              </div>
+
+              <div class="field">
+                <label class="label" for="cancelTemplate">טופס ביטול לשליחה (בעתיד)</label>
+                <select class="input" id="cancelTemplate">
+                  <option value="">בחר טופס ביטול (לא נשלח עדיין)</option>
+                  <option>ביטול פוליסת בריאות כלל</option>
+                  <option>ביטול פוליסה בריאות הראל</option>
+                  <option>ביטול פוליסה בריאות מנורה</option>
+                  <option>ביטול פוליסה בריאות הפניקס</option>
+                  <option>ביטול פוליסה בריאות מגדל</option>
+                </select>
+                <div class="help">בשלב הבא נחבר את זה לשליחה ללקוח לחתימה.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SWAP FLOW (placeholder for future) -->
+      <div id="swapFlow" style="display:none">
+        <div class="card">
+          <div class="card__head">
+            <div class="card__title">מסך שחלוף פוליסה</div>
+            <div class="card__hint">בקרוב נוסיף כאן שדות ושחלוף מתקדם</div>
+          </div>
+          <div style="padding:14px">
+            <div class="muted">המסך הזה הוכן במיוחד כדי שנוכל לבנות עליו בהמשך (ללא שינוי לוגיקת סנכרון).</div>
+          </div>
+        </div>
+      </div>
+
+    <div class="modal__foot" style="padding:0 16px 16px">
+      <div class="row row--between" style="gap:10px">
+        <button class="btn btn--danger" id="btnPolicyActionConfirm" type="button">אישור ביטול</button>
+        <button class="btn" type="button" data-close="1">סגור</button>
+      </div>
+    </div>
+    </div>
+
+    
+  </div>
+</div>
+
+      
+    </div>
+  </div>
+
+
+<!-- USER EDIT MODAL (Admin only) -->
+<div class="modal" id="modalUserEdit" aria-hidden="true">
+  <div class="modal__backdrop" data-close="1"></div>
+  <div class="modal__panel" role="dialog" aria-modal="true" aria-labelledby="userEditTitle">
+    <div class="modal__head">
+      <div>
+        <div class="modal__kicker">LEAD CORE</div>
+        <div class="modal__title" id="userEditTitle">עריכת משתמש</div>
+      </div>
+      <button class="iconBtn" data-close="1" aria-label="סגור">✕</button>
+    </div>
+
+    <form class="modal__body" id="userEditForm">
+      <input type="hidden" id="userEditKind" value="agent" />
+      <input type="hidden" id="userEditId" value="" />
+
+      <div class="field" data-only-agent>
+        <label class="label" for="userEditName">שם נציג</label>
+        <input class="input" id="userEditName" type="text" placeholder="לדוגמה: אוריה" />
+      </div>
+
+      <div class="field">
+        <label class="label" for="userEditUsername">שם משתמש</label>
+        <input class="input" id="userEditUsername" type="text" placeholder="שם משתמש להתחברות" autocomplete="off" />
+      </div>
+
+      <div class="field">
+        <label class="label" for="userEditPin">סיסמה / קוד</label>
+        <input class="input" id="userEditPin" type="password" placeholder="הקלד סיסמה" autocomplete="new-password" />
+        <div class="help">טיפ: אפשר לבחור גם מספרים בלבד (PIN) אם זה יותר נוח לנציגים.</div>
+      </div>
+
+      <div class="field">
+        <label class="label" style="display:flex; align-items:center; gap:10px">
+          <input id="userEditActive" type="checkbox" checked />
+          משתמש פעיל
+        </label>
+      </div>
+
+      <div id="userEditError" class="lcUserEdit__error" aria-live="polite"></div>
+    </form>
+
+    <div class="modal__foot">
+      <div class="row row--between" style="gap:10px">
+        <button class="btn" type="button" data-close="1">ביטול</button>
+        <button class="btn btn--primary" id="btnUserEditSave" type="button">שמירה</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
