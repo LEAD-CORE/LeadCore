@@ -1874,3 +1874,19 @@ body:not(.lcAuthLock) #lcLogin{ display:none !important; }
 @media (max-width: 720px){
   #modalPolicy .formGrid{ grid-template-columns: 1fr; }
 }
+/* ===== Premium CRM: hide system / sync status completely ===== */
+#syncDot,
+#syncText,
+#lastSyncText,
+.sync,
+.sync-status,
+.system-status,
+[data-sync-status],
+[data-system-status] {
+  display: none !important;
+}
+
+/* אם הסטטוס יושב בפוטר/צד – לא להשאיר רווח */
+.sidebar__foot {
+  display: none !important;
+}
