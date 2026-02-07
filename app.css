@@ -1884,3 +1884,12 @@ body:not(.lcAuthLock) #lcLogin{ display:none !important; }
 .sidebar__foot {
   display: none !important;
 }
+/* ===== REMOVE SIDEBAR VERTICAL LINE (Premium Cleanup) ===== */
+.sidebar::after {
+  display: none !important;
+}
+
+/* אם יש גם border צדדי */
+.sidebar {
+  border-inline-end: none !important;
+}
