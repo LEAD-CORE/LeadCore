@@ -1874,3 +1874,13 @@ body:not(.lcAuthLock) #lcLogin{ display:none !important; }
 @media (max-width: 720px){
   #modalPolicy .formGrid{ grid-template-columns: 1fr; }
 }
+/* ===== REMOVE SYSTEM / SYNC STATUS (PRODUCTION) ===== */
+#syncDot,
+#syncText,
+#lastSyncText,
+.sync,
+.sync-status,
+.system-status,
+.sidebar__foot {
+  display: none !important;
+}
