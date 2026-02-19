@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>LeadCore</title>
+  <link rel="stylesheet" href="app.css" />
+</head>
+<body>
+  <div class="app">
+    <aside class="side">
+      <div class="brand">
+        <div class="brandTitle">LeadCore</div>
+        <div class="brandSub">CRM • כחול-לבן נקי</div>
+      </div>
+
+      <nav class="nav">
+        <button class="navBtn is-active" data-view="customers">לקוחות</button>
+        <button class="navBtn" data-view="users">ניהול משתמשים</button>
+        <button class="navBtn" data-view="settings">הגדרות מערכת</button>
+      </nav>
+
+      <div class="sideFooter">
+        <div class="syncLine">
+          <span id="syncStatus">לא מסונכרן</span>
+          <button id="btnSync" class="btn btnGhost" type="button">סנכרון</button>
+        </div>
+        <div class="tiny muted" id="syncMeta"></div>
+      </div>
+    </aside>
+
+    <main class="main">
+      <!-- Customers -->
+      <section class="view is-active" id="view-customers">
+        <div class="top">
+          <div class="titleWrap">
+            <h1 class="h1">לקוחות</h1>
+            <div class="muted">ניהול לקוחות + יצירת לקוח חדש</div>
+          </div>
+          <div class="actions">
+            <input id="qCustomers" class="input" placeholder="חיפוש לקוח…" autocomplete="off" />
+            <button id="btnNewCustomer" class="btn btnPrimary" type="button">יצירת לקוח חדש</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="tableWrap">
+            <table class="table" id="tblCustomers">
+              <thead>
+                <tr>
+                  <th>שם</th>
+                  <th>ת״ז</th>
+                  <th>טלפון</th>
+                  <th>מייל</th>
+                  <th>נציג</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+          <div class="empty muted" id="customersEmpty">אין לקוחות עדיין.</div>
+        </div>
+      </section>
+
+      <!-- Users -->
+      <section class="view" id="view-users">
+        <div class="top">
+          <div class="titleWrap">
+            <h1 class="h1">ניהול משתמשים</h1>
+            <div class="muted">הוספה/עריכה של נציגים במערכת</div>
+          </div>
+          <div class="actions">
+            <button id="btnNewUser" class="btn btnPrimary" type="button">נציג חדש</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="tableWrap">
+            <table class="table" id="tblUsers">
+              <thead>
+                <tr>
+                  <th>שם</th>
+                  <th>תפקיד</th>
+                  <th>ID</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+          <div class="empty muted" id="usersEmpty">אין נציגים עדיין.</div>
+        </div>
+      </section>
+
+      <!-- Settings -->
+      <section class="view" id="view-settings">
+        <div class="top">
+          <div class="titleWrap">
+            <h1 class="h1">הגדרות מערכת</h1>
+            <div class="muted">הגדרות כלליות + חיבור ל‑Google Sheets</div>
+          </div>
+        </div>
+
+        <div class="card form">
+          <div class="field">
+            <label>שם מערכת (לכותרות)</label>
+            <input id="setAppName" class="input" placeholder="LeadCore" />
+          </div>
+
+          <div class="field">
+            <label>Google Sheets Web App URL (נשמר – לא נמחק)</label>
+            <input id="setGsUrl" class="input" placeholder="https://script.google.com/macros/s/…/exec" />
+            <div class="tiny muted">המערכת משתמשת רק ב‑action=get ו‑action=put.</div>
+          </div>
+
+          <div class="field">
+            <label>הערות מערכת</label>
+            <textarea id="setNotes" class="input" rows="4" placeholder="טקסט חופשי…"></textarea>
+          </div>
+
+          <div class="row">
+            <button id="btnSaveSettings" class="btn btnPrimary" type="button">שמור הגדרות</button>
+            <button id="btnResetLocal" class="btn btnGhost" type="button">ניקוי נתונים מקומיים</button>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Modal -->
+  <div class="modal" id="modal" aria-hidden="true">
+    <div class="modalCard" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <div class="modalHead">
+        <div class="modalTitle" id="modalTitle">כותרת</div>
+        <button class="iconBtn" id="modalClose" type="button" aria-label="סגור">✕</button>
+      </div>
+      <div class="modalBody" id="modalBody"></div>
+      <div class="modalFoot" id="modalFoot"></div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
