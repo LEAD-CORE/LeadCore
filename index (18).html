@@ -1,0 +1,855 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ביטוח נסיעות לחו"ל שמשלם במקום | PassportCard</title>
+<meta name="description" content="ביטוח הנסיעות של פספורטכארד משלם ישירות בכרטיס — בלי להוציא כסף מהכיס, בלי טפסים, שירות 24/7 בעברית. רכשו אונליין תוך דקות.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rubik:wght@500;600;700;800&family=Assistant:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --red:#EC463C;
+    --red-dark:#C9382F;
+    --ink:#12233F;
+    --ink-soft:#4A5A72;
+    --bg:#FFFFFF;
+    --surface:#F4F7FB;
+    --surface-2:#EDF2F9;
+    --line:#E2E9F2;
+    --gold:#FFB23E;
+    --shadow:0 20px 50px -18px rgba(18,35,63,.28);
+    --shadow-sm:0 8px 24px -12px rgba(18,35,63,.22);
+    --radius:18px;
+  }
+
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{
+    font-family:'Assistant',system-ui,sans-serif;
+    color:var(--ink);
+    background:var(--bg);
+    line-height:1.65;
+    -webkit-font-smoothing:antialiased;
+    overflow-x:hidden;
+  }
+  h1,h2,h3,.wordmark{font-family:'Rubik',sans-serif;line-height:1.2}
+  a{color:inherit;text-decoration:none}
+  .wrap{width:min(1120px,92vw);margin-inline:auto}
+  section{position:relative}
+
+  /* ---------- Buttons ---------- */
+  .btn{
+    display:inline-flex;align-items:center;gap:.5rem;
+    font-family:'Rubik',sans-serif;font-weight:600;font-size:1.06rem;
+    padding:.95rem 1.9rem;border-radius:999px;border:0;cursor:pointer;
+    transition:transform .18s ease, box-shadow .18s ease, background .18s ease;
+    white-space:nowrap;
+  }
+  .btn-primary{
+    background:var(--red);color:#fff;
+    box-shadow:0 12px 26px -10px rgba(236,70,60,.7);
+  }
+  .btn-primary:hover{background:var(--red-dark);transform:translateY(-2px);box-shadow:0 16px 30px -10px rgba(236,70,60,.8)}
+  .btn-primary .arw{transition:transform .2s ease}
+  .btn-primary:hover .arw{transform:translateX(-4px)}
+  .btn-ghost{background:transparent;color:var(--ink);border:1.5px solid var(--line)}
+  .btn-ghost:hover{border-color:var(--ink);transform:translateY(-2px)}
+  .btn-white{background:#fff;color:var(--red)}
+  .btn-white:hover{transform:translateY(-2px);box-shadow:0 16px 34px -14px rgba(0,0,0,.35)}
+
+  /* ---------- Header ---------- */
+  header{
+    position:sticky;top:0;z-index:50;
+    background:rgba(255,255,255,.86);backdrop-filter:blur(12px);
+    border-bottom:1px solid var(--line);
+  }
+  .nav{display:flex;align-items:center;justify-content:space-between;padding:.85rem 0}
+  .wordmark{font-weight:800;font-size:1.4rem;letter-spacing:-.5px;display:flex;align-items:center;gap:.45rem}
+  .wordmark .dot{width:12px;height:12px;border-radius:4px;background:var(--red);display:inline-block;transform:rotate(45deg)}
+  .wordmark b{color:var(--red);font-weight:800}
+  .nav .btn{padding:.6rem 1.3rem;font-size:.98rem}
+  .nav-hide{display:inline-flex}
+
+  /* ---------- Hero ---------- */
+  .hero{padding:clamp(3rem,7vw,5.5rem) 0 clamp(3rem,6vw,5rem);overflow:hidden}
+  .hero-grid{display:grid;grid-template-columns:1.05fr .95fr;gap:clamp(2rem,5vw,4rem);align-items:center}
+  .eyebrow{
+    display:inline-flex;align-items:center;gap:.5rem;
+    font-family:'Rubik',sans-serif;font-weight:600;font-size:.85rem;letter-spacing:.3px;
+    color:#A32218;background:#FDECEA;padding:.4rem 1rem;border-radius:999px;margin-bottom:1.4rem;
+  }
+  .hero h1{font-size:clamp(2.1rem,5vw,3.5rem);font-weight:800;letter-spacing:-1px}
+  .hero h1 .hl{color:var(--red)}
+  .hero p.lead{font-size:clamp(1.08rem,2.2vw,1.28rem);color:var(--ink-soft);margin:1.3rem 0 2rem;max-width:34ch}
+  .hero-cta{display:flex;gap:.9rem;flex-wrap:wrap}
+  .trust{display:flex;align-items:center;gap:.6rem;margin-top:1.8rem;font-weight:600;color:var(--ink-soft);font-size:.98rem}
+  .stars{color:var(--gold);letter-spacing:2px;font-size:1.05rem}
+
+  /* ---------- Hero card visual ---------- */
+  .card-stage{position:relative;display:flex;justify-content:center;align-items:center;min-height:340px}
+  .glow{position:absolute;width:380px;height:380px;border-radius:50%;
+    background:radial-gradient(circle,rgba(236,70,60,.22),transparent 65%);filter:blur(8px);z-index:0}
+  .pcard{
+    position:relative;z-index:2;width:min(360px,84%);aspect-ratio:1.585/1;
+    border-radius:22px;padding:1.5rem 1.6rem;color:#fff;
+    background:linear-gradient(135deg,#F0554A 0%,#E3392E 55%,#C42E25 100%);
+    box-shadow:var(--shadow);
+    display:flex;flex-direction:column;justify-content:space-between;
+    transform:rotate(-6deg);
+    animation:float 6s ease-in-out infinite;
+  }
+  @keyframes float{0%,100%{transform:rotate(-6deg) translateY(0)}50%{transform:rotate(-6deg) translateY(-14px)}}
+  .pcard .brand{font-family:'Rubik',sans-serif;font-weight:800;font-size:1.15rem;letter-spacing:-.3px;display:flex;align-items:center;gap:.4rem}
+  .pcard .chip{width:42px;height:32px;border-radius:7px;background:linear-gradient(135deg,#FFE7A8,#E9B24C);margin-top:.2rem;box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.35)}
+  .pcard .num{font-family:'Rubik',sans-serif;letter-spacing:3px;font-size:1.05rem;opacity:.95}
+  .pcard .row{display:flex;justify-content:space-between;align-items:flex-end}
+  .pcard .row small{opacity:.75;font-size:.7rem;display:block;letter-spacing:.5px}
+  .pcard .row span{font-family:'Rubik',sans-serif;font-weight:600;font-size:.9rem}
+  .stamp{
+    position:absolute;z-index:3;left:-6px;top:26px;transform:rotate(8deg);
+    background:#12233F;color:#fff;font-family:'Rubik',sans-serif;font-weight:700;font-size:.82rem;
+    padding:.5rem 1rem;border-radius:12px;box-shadow:var(--shadow-sm);
+    display:flex;align-items:center;gap:.4rem;
+    animation:pop .5s .6s both;
+  }
+  .stamp::before{content:"";width:8px;height:8px;border-radius:50%;background:#2ED47A;box-shadow:0 0 0 3px rgba(46,212,122,.25)}
+  @keyframes pop{from{opacity:0;transform:rotate(8deg) scale(.7)}to{opacity:1;transform:rotate(8deg) scale(1)}}
+
+  /* ---------- Logos / mini trust bar ---------- */
+  .strip{background:var(--surface);border-block:1px solid var(--line)}
+  .strip .wrap{display:flex;flex-wrap:wrap;gap:1rem 2.5rem;justify-content:center;padding:1.1rem 0;
+    font-weight:600;color:var(--ink-soft);font-size:.96rem}
+  .strip b{color:var(--ink)}
+  .strip .it{display:flex;align-items:center;gap:.5rem}
+  .strip .it svg{flex:none}
+
+  /* ---------- Section heading ---------- */
+  .head{text-align:center;max-width:640px;margin:0 auto clamp(2rem,4vw,3rem)}
+  .head .tag{font-family:'Rubik',sans-serif;font-weight:600;color:#B02A1F;font-size:.9rem;letter-spacing:.4px}
+  .head h2{font-size:clamp(1.7rem,3.6vw,2.5rem);font-weight:700;margin-top:.5rem;letter-spacing:-.6px}
+  .head p{color:var(--ink-soft);margin-top:.8rem;font-size:1.08rem}
+
+  .pad{padding:clamp(3.5rem,7vw,6rem) 0}
+
+  /* ---------- Features ---------- */
+  .features{display:grid;grid-template-columns:repeat(3,1fr);gap:1.1rem}
+  .feat{
+    background:#fff;border:1px solid var(--line);border-radius:var(--radius);padding:1.6rem;
+    transition:transform .2s ease,box-shadow .2s ease,border-color .2s ease;
+  }
+  .feat:hover{transform:translateY(-4px);box-shadow:var(--shadow-sm);border-color:#D4E0EE}
+  .feat .ic{width:52px;height:52px;border-radius:14px;background:#FDECEA;display:flex;align-items:center;justify-content:center;margin-bottom:1.1rem}
+  .feat .ic svg{width:26px;height:26px;stroke:var(--red)}
+  .feat h3{font-size:1.22rem;font-weight:700;margin-bottom:.4rem}
+  .feat p{color:var(--ink-soft);font-size:1rem}
+
+  /* ---------- Steps ---------- */
+  .steps-sec{background:var(--surface)}
+  .steps{display:grid;grid-template-columns:repeat(3,1fr);gap:1.4rem;counter-reset:s}
+  .step{position:relative;background:#fff;border-radius:var(--radius);padding:2rem 1.6rem 1.7rem;border:1px solid var(--line)}
+  .step .n{
+    counter-increment:s;position:absolute;top:-22px;inset-inline-start:24px;
+    width:46px;height:46px;border-radius:14px;background:var(--red);color:#fff;
+    font-family:'Rubik',sans-serif;font-weight:800;font-size:1.25rem;
+    display:flex;align-items:center;justify-content:center;box-shadow:0 10px 20px -8px rgba(236,70,60,.6);
+  }
+  .step .n::after{content:counter(s)}
+  .step h3{font-size:1.2rem;font-weight:700;margin:.7rem 0 .4rem}
+  .step p{color:var(--ink-soft);font-size:1rem}
+
+  /* ---------- Testimonials ---------- */
+  .tst{display:grid;grid-template-columns:repeat(3,1fr);gap:1.2rem}
+  .quote{background:#fff;border:1px solid var(--line);border-radius:var(--radius);padding:1.7rem;display:flex;flex-direction:column;gap:1rem}
+  .quote .stars{font-size:1rem}
+  .quote p{color:var(--ink);font-size:1.04rem;flex:1}
+  .quote .who{display:flex;align-items:center;gap:.7rem}
+  .quote .av{width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#F0554A,#C42E25);color:#fff;
+    font-family:'Rubik',sans-serif;font-weight:700;display:flex;align-items:center;justify-content:center;font-size:1.05rem}
+  .quote .who b{font-family:'Rubik',sans-serif;display:block;font-size:1rem}
+  .quote .who small{color:var(--ink-soft)}
+
+  /* ---------- CTA band ---------- */
+  .cta-band{background:linear-gradient(135deg,#EC463C,#C42E25);color:#fff;text-align:center;padding:clamp(3rem,6vw,5rem) 0;position:relative;overflow:hidden}
+  .cta-band::before,.cta-band::after{content:"";position:absolute;border-radius:50%;background:rgba(255,255,255,.08)}
+  .cta-band::before{width:320px;height:320px;top:-140px;inset-inline-start:-80px}
+  .cta-band::after{width:260px;height:260px;bottom:-130px;inset-inline-end:-60px}
+  .cta-band h2{font-size:clamp(1.8rem,4vw,2.7rem);font-weight:800;position:relative;letter-spacing:-.6px}
+  .cta-band p{font-size:1.15rem;opacity:.95;margin:.9rem auto 2rem;max-width:44ch;position:relative}
+  .cta-band .btn{position:relative}
+  .cta-note{margin-top:1.1rem;font-size:.9rem;opacity:.85;position:relative}
+
+  /* ---------- Footer ---------- */
+  footer{background:var(--ink);color:#B8C4D6;padding:3rem 0 2rem;font-size:.92rem}
+  footer .top{display:flex;justify-content:space-between;align-items:center;gap:1.5rem;flex-wrap:wrap;padding-bottom:1.5rem;border-bottom:1px solid rgba(255,255,255,.1)}
+  footer .wordmark{color:#fff;font-size:1.25rem}
+  footer .disc{margin-top:1.5rem;line-height:1.7;color:#8FA0B8;font-size:.86rem;max-width:80ch}
+  footer .fine{margin-top:1rem;color:#98A9C0;font-size:.8rem}
+
+  /* ---------- Reveal ---------- */
+  .rv{opacity:0;transform:translateY(24px);transition:opacity .7s ease,transform .7s ease}
+  .rv.in{opacity:1;transform:none}
+
+  /* ---------- Responsive ---------- */
+  @media(max-width:900px){
+    .hero-grid{grid-template-columns:1fr;text-align:center}
+    .hero p.lead,.eyebrow{margin-inline:auto}
+    .hero-cta{justify-content:center}
+    .trust{justify-content:center;flex-wrap:wrap;align-items:flex-start}
+    .card-stage{order:-1;min-height:290px}
+    .features,.steps,.tst{grid-template-columns:1fr 1fr}
+  }
+  @media(max-width:620px){
+    .features,.steps,.tst{grid-template-columns:1fr}
+    .nav-hide{display:none}
+    .hero p.lead{max-width:none}
+    .trust{flex-direction:column;gap:.45rem;text-align:center}
+    .trust span:last-child{max-width:30ch;margin-inline:auto}
+  }
+  @media(prefers-reduced-motion:reduce){
+    .pcard{animation:none}
+    .rv{transition:none;opacity:1;transform:none}
+    *{scroll-behavior:auto}
+  }
+
+  /* ============================================================
+     ACCESSIBILITY + COMPLIANCE
+     ============================================================ */
+
+  /* ---- Skip link ---- */
+  .skip-link{
+    position:absolute;inset-inline-start:1rem;top:-60px;z-index:200;
+    background:var(--ink);color:#fff;font-family:'Rubik',sans-serif;font-weight:600;
+    padding:.7rem 1.2rem;border-radius:0 0 12px 12px;transition:top .2s ease;
+  }
+  .skip-link:focus{top:0}
+
+  /* ---- Visible focus for keyboard users ---- */
+  a:focus-visible,button:focus-visible,[tabindex]:focus-visible{
+    outline:3px solid #12233F;outline-offset:2px;border-radius:6px;
+  }
+  .btn-primary:focus-visible,.cta-band .btn:focus-visible{outline-color:#12233F}
+  .btn-white:focus-visible{outline-color:#fff}
+
+  /* ---- Screen-reader-only helper ---- */
+  .sr-only{
+    position:absolute!important;width:1px;height:1px;padding:0;margin:-1px;
+    overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;
+  }
+
+  /* ---- Footer legal links ---- */
+  footer .legal{
+    display:flex;flex-wrap:wrap;gap:.4rem 1.4rem;margin-top:1.4rem;
+    font-size:.86rem;
+  }
+  footer .legal button,footer .legal a{
+    background:none;border:0;padding:0;color:#B8C4D6;cursor:pointer;
+    font-family:'Assistant',sans-serif;font-size:.86rem;text-decoration:underline;
+    text-underline-offset:3px;transition:color .15s ease;
+  }
+  footer .legal button:hover,footer .legal a:hover{color:#fff}
+  footer .contact{margin-top:1rem;color:#8FA0B8;font-size:.86rem;line-height:1.8}
+  footer .contact a{text-decoration:underline;text-underline-offset:3px}
+  footer .contact a:hover{color:#fff}
+
+  /* ---- Modal / dialog ---- */
+  .modal-overlay{
+    position:fixed;inset:0;z-index:150;background:rgba(18,35,63,.55);
+    backdrop-filter:blur(3px);display:none;align-items:flex-start;justify-content:center;
+    padding:clamp(1rem,5vh,4rem) 1rem;overflow-y:auto;
+  }
+  .modal-overlay.open{display:flex}
+  .modal{
+    background:#fff;color:var(--ink);border-radius:var(--radius);
+    width:min(760px,100%);box-shadow:var(--shadow);
+    max-height:90vh;display:flex;flex-direction:column;
+  }
+  .modal-head{
+    display:flex;align-items:center;justify-content:space-between;gap:1rem;
+    padding:1.3rem 1.6rem;border-bottom:1px solid var(--line);position:sticky;top:0;background:#fff;border-radius:var(--radius) var(--radius) 0 0;
+  }
+  .modal-head h2{font-size:1.35rem;font-weight:700}
+  .modal-close{
+    width:40px;height:40px;flex:none;border-radius:12px;border:1px solid var(--line);
+    background:var(--surface);cursor:pointer;font-size:1.3rem;line-height:1;color:var(--ink);
+    display:flex;align-items:center;justify-content:center;transition:background .15s ease;
+  }
+  .modal-close:hover{background:var(--surface-2)}
+  .modal-body{padding:1.5rem 1.6rem;overflow-y:auto;font-size:.98rem;color:var(--ink-soft)}
+  .modal-body h3{font-family:'Rubik',sans-serif;color:var(--ink);font-size:1.08rem;font-weight:700;margin:1.4rem 0 .5rem}
+  .modal-body h3:first-child{margin-top:0}
+  .modal-body p{margin-bottom:.8rem}
+  .modal-body ul{margin:0 0 .9rem;padding-inline-start:1.3rem}
+  .modal-body li{margin-bottom:.4rem}
+  .modal-body a{color:var(--red);text-decoration:underline;text-underline-offset:3px}
+  .modal-body .updated{font-size:.82rem;color:var(--ink-soft);margin-top:1.4rem;padding-top:1rem;border-top:1px solid var(--line)}
+
+  /* ---- Cookie consent banner ---- */
+  .cookie{
+    position:fixed;inset-inline:0;bottom:0;z-index:140;
+    background:#fff;border-top:1px solid var(--line);box-shadow:0 -12px 40px -18px rgba(18,35,63,.35);
+    padding:1.1rem 0;display:none;
+  }
+  .cookie.show{display:block}
+  .cookie .wrap{display:flex;align-items:center;gap:1.2rem;flex-wrap:wrap;justify-content:space-between}
+  .cookie p{font-size:.92rem;color:var(--ink-soft);flex:1;min-width:260px}
+  .cookie p a{color:var(--red);text-decoration:underline;text-underline-offset:3px}
+  .cookie .cookie-btns{display:flex;gap:.6rem;flex-wrap:wrap}
+  .cookie .btn{padding:.6rem 1.3rem;font-size:.95rem}
+  .cookie .btn-ghost{border-color:var(--line)}
+
+  /* ---- Accessibility widget ---- */
+  .a11y-toggle{
+    position:fixed;inset-inline-start:16px;bottom:16px;z-index:130;
+    width:56px;height:56px;border-radius:50%;border:0;cursor:pointer;
+    background:var(--ink);color:#fff;box-shadow:var(--shadow-sm);
+    display:flex;align-items:center;justify-content:center;
+    transition:transform .18s ease,background .18s ease;
+  }
+  .a11y-toggle:hover{transform:scale(1.06);background:#0c1a31}
+  .a11y-toggle svg{width:30px;height:30px}
+  .a11y-panel{
+    position:fixed;inset-inline-start:16px;bottom:84px;z-index:131;
+    width:300px;max-width:calc(100vw - 32px);background:#fff;color:var(--ink);
+    border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);
+    padding:1.1rem;display:none;
+  }
+  .a11y-panel.open{display:block}
+  .a11y-panel h2{font-size:1.05rem;font-weight:700;margin-bottom:.2rem}
+  .a11y-panel .sub{font-size:.82rem;color:var(--ink-soft);margin-bottom:.9rem}
+  .a11y-grid{display:grid;grid-template-columns:1fr 1fr;gap:.5rem}
+  .a11y-grid button{
+    display:flex;flex-direction:column;align-items:center;gap:.35rem;text-align:center;
+    padding:.7rem .5rem;border:1px solid var(--line);border-radius:12px;background:var(--surface);
+    cursor:pointer;font-family:'Assistant',sans-serif;font-size:.82rem;font-weight:600;color:var(--ink);
+    transition:border-color .15s ease,background .15s ease;
+  }
+  .a11y-grid button:hover{border-color:#C7D4E4}
+  .a11y-grid button[aria-pressed="true"]{background:#FDECEA;border-color:var(--red);color:var(--red)}
+  .a11y-grid button svg{width:22px;height:22px}
+  .a11y-reset{
+    width:100%;margin-top:.7rem;padding:.6rem;border:1px solid var(--line);border-radius:12px;
+    background:#fff;cursor:pointer;font-family:'Rubik',sans-serif;font-weight:600;font-size:.9rem;color:var(--ink);
+  }
+  .a11y-reset:hover{background:var(--surface)}
+  .a11y-panel .stmt-link{display:block;margin-top:.8rem;text-align:center;font-size:.82rem;color:var(--red);text-decoration:underline;text-underline-offset:3px;background:none;border:0;cursor:pointer;width:100%;font-family:'Assistant',sans-serif}
+
+  /* ---- Accessibility MODES (applied to <html>) ---- */
+  html.a11y-font-1 body{font-size:1.12rem}
+  html.a11y-font-2 body{font-size:1.26rem}
+  html.a11y-font-3 body{font-size:1.4rem}
+  html.a11y-links a:not(.btn){text-decoration:underline!important;text-underline-offset:2px;font-weight:700}
+  html.a11y-readable body,html.a11y-readable h1,html.a11y-readable h2,html.a11y-readable h3,html.a11y-readable .wordmark{
+    font-family:Arial,'Assistant',sans-serif!important;letter-spacing:0!important;
+  }
+  html.a11y-contrast{filter:contrast(1.35)}
+  html.a11y-contrast body{background:#fff}
+  html.a11y-contrast .hero-grid .rv,html.a11y-contrast .head p,html.a11y-contrast .feat p,
+  html.a11y-contrast .step p,html.a11y-contrast p.lead{color:#12233F!important}
+  html.a11y-bigcursor,html.a11y-bigcursor *{
+    cursor:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='48' viewBox='0 0 24 24'%3E%3Cpath d='M4 2l7 18 2.5-7L20 10z' fill='%2312233F' stroke='white' stroke-width='1.2'/%3E%3C/svg%3E") 4 2,auto!important;
+  }
+  html.a11y-stop *{animation:none!important;transition:none!important;scroll-behavior:auto!important}
+</style>
+</head>
+<body>
+
+<a class="skip-link" href="#main">דלג לתוכן הראשי</a>
+
+<!-- HEADER -->
+<header>
+  <nav class="wrap nav" aria-label="ניווט ראשי">
+    <div class="wordmark">INVESTO&nbsp;<b>FLY</b><span class="dot" aria-hidden="true"></span></div>
+    <a class="btn btn-primary" href="https://buy.passportcard.co.il/?AffiliateId=vINm9OCbeh0%2BTAjGxvVjjQ%3D%3D">רכשו עכשיו</a>
+  </nav>
+</header>
+
+<main id="main">
+
+<!-- HERO -->
+<section class="hero">
+  <div class="wrap hero-grid">
+    <div class="rv">
+      <span class="eyebrow"><span aria-hidden="true">✈️</span> ביטוח נסיעות לחו"ל</span>
+      <h1>טסים לחו"ל? אל תמריאו בלי ביטוח <span class="hl">שמשלם במקום.</span></h1>
+      <p class="lead">ביטוח הנסיעות של פספורטכארד משלם ישירות בכרטיס — בלי להוציא כסף מהכיס, בלי טפסים ובלי המתנה. שירות בעברית 24/7, מכל מקום בעולם.</p>
+      <div class="hero-cta">
+        <a class="btn btn-primary" href="https://buy.passportcard.co.il/?AffiliateId=vINm9OCbeh0%2BTAjGxvVjjQ%3D%3D">לרכישת הביטוח <span class="arw" aria-hidden="true">‹</span></a>
+        <a class="btn btn-ghost" href="#why">למה דווקא פספורטכארד?</a>
+      </div>
+      <div class="trust">
+        <span class="stars" aria-hidden="true">★★★★★</span>
+        <span>מקום 1 במדד שירות הלקוחות של רשות שוק ההון 2024</span>
+      </div>
+    </div>
+
+    <div class="card-stage rv" aria-hidden="true">
+      <div class="glow"></div>
+      <div class="stamp">משלם במקום</div>
+      <div class="pcard">
+        <div class="brand"><span class="dot" style="width:12px;height:12px;border-radius:4px;background:#fff;transform:rotate(45deg)"></span>PassportCard</div>
+        <div class="chip"></div>
+        <div class="num">•••• •••• •••• 2014</div>
+        <div class="row">
+          <div><small>TRAVEL INSURANCE</small><span>שקט נפשי בכל העולם</span></div>
+          <div><small>VALID</small><span>∞</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- TRUST STRIP -->
+<div class="strip">
+  <div class="wrap">
+    <div class="it"><svg aria-hidden="true" focusable="false" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#EC463C" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg><span>כיסוי ב-<b>150+</b> מדינות</span></div>
+    <div class="it"><svg aria-hidden="true" focusable="false" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#EC463C" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span>מוקד <b>24/7</b> בעברית</span></div>
+    <div class="it"><svg aria-hidden="true" focusable="false" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#EC463C" stroke-width="2"><path d="M12 2l2.5 5 5.5.8-4 3.9.9 5.5L12 20l-4.9 2.6.9-5.5-4-3.9L9.5 7z"/></svg><span>ציון שירות <b>96%</b></span></div>
+    <div class="it"><svg aria-hidden="true" focusable="false" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#EC463C" stroke-width="2"><path d="M4 12h16M12 4v16"/></svg><span>חברת הביטוח <b>הגדולה בישראל</b></span></div>
+  </div>
+</div>
+
+<!-- WHY -->
+<section class="pad" id="why">
+  <div class="wrap">
+    <div class="head rv">
+      <span class="tag">למה פספורטכארד</span>
+      <h2>ביטוח נסיעות שעובד אחרת</h2>
+      <p>במקום להוציא כסף ולרדוף אחרי החזרים — הכרטיס משלם בשבילכם, במקום.</p>
+    </div>
+    <div class="features">
+      <div class="feat rv">
+        <div class="ic"><svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg></div>
+        <h3>משלמים במקום</h3>
+        <p>כרטיס ייעודי שמשלם ישירות לרופא או לבית החולים — בלי להוציא כסף מהכיס ובלי השתתפות עצמית.</p>
+      </div>
+      <div class="feat rv">
+        <div class="ic"><svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div>
+        <h3>שירות 24/7 בעברית</h3>
+        <p>מוקד אנושי זמין בכל שעה, מכל יעד בעולם. אתם מדברים, אנחנו כבר מטפלים.</p>
+      </div>
+      <div class="feat rv">
+        <div class="ic"><svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg></div>
+        <h3>בלי בירוקרטיה</h3>
+        <p>אין טפסים, אין המתנה לנציג ואין הסברים מיותרים. הכול פשוט, מהיר וברור.</p>
+      </div>
+      <div class="feat rv">
+        <div class="ic"><svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a15 15 0 010 18M12 3a15 15 0 000 18"/></svg></div>
+        <h3>כיסוי בכל העולם</h3>
+        <p>רופאים ובתי חולים בהסכם ב-150+ מדינות, כולל הטסה רפואית חזרה לישראל במקרה הצורך.</p>
+      </div>
+      <div class="feat rv">
+        <div class="ic"><svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M12 2l2.5 5 5.5.8-4 3.9.9 5.5L12 20l-4.9 2.6.9-5.5-4-3.9L9.5 7z"/></svg></div>
+        <h3>הכי מדורגים</h3>
+        <p>מספר 1 במדד שירות הלקוחות של רשות שוק ההון, עם ציון 96% משוקלל. לא סתם מבטיחים.</p>
+      </div>
+      <div class="feat rv">
+        <div class="ic"><svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M12 22s8-4 8-11V5l-8-3-8 3v6c0 7 8 11 8 11z"/></svg></div>
+        <h3>ביטוח לכל נסיעה</h3>
+        <p>חופשה משפחתית, טיול תרמילאים, ספורט אתגרי או עסקים — מתאימים את הכיסוי בדיוק אליכם.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- STEPS -->
+<section class="pad steps-sec">
+  <div class="wrap">
+    <div class="head rv">
+      <span class="tag">איך זה עובד</span>
+      <h2>שלושה צעדים לשקט נפשי</h2>
+      <p>מהרכישה ועד הטיסה — לוקח דקות, לא ימים.</p>
+    </div>
+    <div class="steps">
+      <div class="step rv"><span class="n"></span><h3>רוכשים אונליין</h3><p>ממלאים פרטים ומקבלים פוליסה תוך דקות, ישירות באתר — בלי המתנה לנציג.</p></div>
+      <div class="step rv"><span class="n"></span><h3>מקבלים כרטיס</h3><p>הכרטיס האדום מחכה לכם, כולל איסוף בעמדת פספורטכארד בנתב"ג הפעילה 24/7.</p></div>
+      <div class="step rv"><span class="n"></span><h3>משתמשים בחו"ל</h3><p>צריכים רופא? מתקשרים למוקד, הכרטיס נטען, ומשלמים במקום. זהו.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- TESTIMONIALS -->
+<section class="pad">
+  <div class="wrap">
+    <div class="head rv">
+      <span class="tag">לקוחות מספרים</span>
+      <h2>היו שם בכל רגע</h2>
+    </div>
+    <div class="tst">
+      <div class="quote rv">
+        <span class="stars" aria-hidden="true">★★★★★</span><span class="sr-only">דירוג 5 מתוך 5 כוכבים</span>
+        <p>"נפצעתי בטיול והמוקד טיפל בהכול תוך דקות. שילמתי עם הכרטיס בבית החולים בלי להוציא שקל מהכיס. פשוט שקט."</p>
+        <div class="who"><span class="av">נ</span><div><b>נועה כהן</b><small>תאילנד</small></div></div>
+      </div>
+      <div class="quote rv">
+        <span class="stars" aria-hidden="true">★★★★★</span><span class="sr-only">דירוג 5 מתוך 5 כוכבים</span>
+        <p>"התקשרתי באמצע הלילה, ענו לי בעברית והכווינו אותי לרופא הכי קרוב. הרגשתי שיש מי שדואג לי גם 5,000 ק"מ מהבית."</p>
+        <div class="who"><span class="av">א</span><div><b>איתי לוי</b><small>פורטוגל</small></div></div>
+      </div>
+      <div class="quote rv">
+        <span class="stars" aria-hidden="true">★★★★★</span><span class="sr-only">דירוג 5 מתוך 5 כוכבים</span>
+        <p>"בלי טפסים, בלי בירוקרטיה ובלי הסברים מיותרים. הדבר הכי פשוט שעשיתי לפני טיסה. ממליצה בחום."</p>
+        <div class="who"><span class="av">מ</span><div><b>מיכל ברק</b><small>יוון</small></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA BAND -->
+<section class="cta-band">
+  <div class="wrap">
+    <h2>מוכנים לטוס בראש שקט?</h2>
+    <p>רכשו ביטוח נסיעות לחו"ל לפני שאתם ממריאים. לוקח כמה דקות, ומלווה אתכם לאורך כל הדרך.</p>
+    <a class="btn btn-white" href="https://buy.passportcard.co.il/?AffiliateId=vINm9OCbeh0%2BTAjGxvVjjQ%3D%3D">לרכישת הביטוח עכשיו ‹</a>
+    <div class="cta-note">רכישה מאובטחת באתר הרשמי של PassportCard</div>
+  </div>
+</section>
+
+</main>
+
+<!-- FOOTER -->
+<footer>
+  <div class="wrap">
+    <div class="top">
+      <div class="wordmark">INVESTO&nbsp;<b style="color:var(--red)">FLY</b><span class="dot" aria-hidden="true"></span></div>
+      <a class="btn btn-primary" href="https://buy.passportcard.co.il/?AffiliateId=vINm9OCbeh0%2BTAjGxvVjjQ%3D%3D" style="padding:.6rem 1.4rem;font-size:.98rem">רכשו עכשיו</a>
+    </div>
+
+    <nav class="legal" aria-label="קישורים משפטיים">
+      <button type="button" data-modal="modal-privacy">מדיניות פרטיות</button>
+      <button type="button" data-modal="modal-terms">תנאי שימוש</button>
+      <button type="button" data-modal="modal-accessibility">הצהרת נגישות</button>
+      <button type="button" data-modal="modal-cookies">מדיניות עוגיות (Cookies)</button>
+    </nav>
+
+    <p class="disc">
+      דף זה מופעל על ידי שותף שיווקי מורשה של PassportCard ומפנה לרכישה באתר הרשמי של החברה. הרכישה, הפוליסה, הכיסויים והתנאים הם באחריות PassportCard בלבד, בכפוף לתנאי הפוליסה ולאמנת השירות. אין באמור לעיל כדי להוות ייעוץ או המלצה, והכיסוי בפועל כפוף לתנאי הפוליסה המלאים.
+    </p>
+    <p class="fine">
+      ביטוח נסיעות לחו"ל משווק ע"י PassportCard ישראל סוכנות לביטוח כללי (2014) בע"מ. © כל הזכויות שמורות ל-PassportCard. הזכויות בדף זה שמורות למפעיל הדף.
+    </p>
+  </div>
+</footer>
+
+<!-- ============ ACCESSIBILITY WIDGET ============ -->
+<button class="a11y-toggle" id="a11yToggle" aria-expanded="false" aria-controls="a11yPanel" aria-label="פתיחת תפריט נגישות">
+  <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" focusable="false"><circle cx="12" cy="3.8" r="2"/><path d="M21 8.5c-2.7 1-5.9 1.3-9 1.3S5.7 9.5 3 8.5L3.6 6.6c2.4.9 5.3 1.2 8.4 1.2s6-.3 8.4-1.2L21 8.5zM9.2 10.5l-1 8.9 2 .2.9-6 .9 6 2-.2-1-8.9z"/></svg>
+</button>
+<div class="a11y-panel" id="a11yPanel" role="dialog" aria-label="תפריט נגישות" aria-modal="false">
+  <h2>נגישות</h2>
+  <p class="sub">התאמת התצוגה לנוחות שלכם</p>
+  <div class="a11y-grid">
+    <button type="button" data-a11y="font" aria-pressed="false">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true" focusable="false"><path d="M5 20l5-14 5 14M7 14h6M17 20l2-6 2 6M18 17h2"/></svg>
+      הגדלת טקסט
+    </button>
+    <button type="button" data-a11y="contrast" aria-pressed="false">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="9"/><path d="M12 3v18" fill="currentColor"/></svg>
+      ניגודיות גבוהה
+    </button>
+    <button type="button" data-a11y="links" aria-pressed="false">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true" focusable="false"><path d="M10 13a5 5 0 007 0l2-2a5 5 0 00-7-7l-1 1M14 11a5 5 0 00-7 0l-2 2a5 5 0 007 7l1-1"/></svg>
+      הדגשת קישורים
+    </button>
+    <button type="button" data-a11y="readable" aria-pressed="false">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true" focusable="false"><path d="M4 7V5h16v2M9 5v14M7 19h4"/></svg>
+      גופן קריא
+    </button>
+    <button type="button" data-a11y="stop" aria-pressed="false">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true" focusable="false"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
+      עצירת אנימציות
+    </button>
+    <button type="button" data-a11y="bigcursor" aria-pressed="false">
+      <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" focusable="false"><path d="M4 2l7 18 2.5-7L20 10z"/></svg>
+      סמן גדול
+    </button>
+  </div>
+  <button type="button" class="a11y-reset" id="a11yReset">איפוס הגדרות נגישות</button>
+  <button type="button" class="stmt-link" data-modal="modal-accessibility">להצהרת הנגישות המלאה ›</button>
+</div>
+
+<!-- ============ COOKIE CONSENT BANNER ============ -->
+<div class="cookie" id="cookieBanner" role="region" aria-label="הודעת עוגיות">
+  <div class="wrap">
+    <p>אנו משתמשים בעוגיות (Cookies) לצורך תפעול הדף, ניתוח ביצועים ופרסום מותאם. בלחיצה על "אישור" אתם מסכימים לשימוש בעוגיות. <button type="button" data-modal="modal-cookies" style="background:none;border:0;color:var(--red);text-decoration:underline;cursor:pointer;font-family:inherit;font-size:inherit;padding:0">מדיניות העוגיות</button></p>
+    <div class="cookie-btns">
+      <button type="button" class="btn btn-ghost" id="cookieReject">רק ההכרחי</button>
+      <button type="button" class="btn btn-primary" id="cookieAccept">אישור העוגיות</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ MODALS ============ -->
+<!-- Privacy -->
+<div class="modal-overlay" id="modal-privacy" role="dialog" aria-modal="true" aria-labelledby="modal-privacy-title">
+  <div class="modal">
+    <div class="modal-head">
+      <h2 id="modal-privacy-title">מדיניות פרטיות</h2>
+      <button type="button" class="modal-close" aria-label="סגירה">✕</button>
+    </div>
+    <div class="modal-body">
+      <p>דף זה ("הדף") מופעל על ידי <strong>[שם החברה / עוסק מורשה]</strong> ("אנחנו"). אנו מכבדים את פרטיותכם ומחויבים להגן על המידע שנאסף במסגרת השימוש בדף, בהתאם לחוק הגנת הפרטיות, התשמ"א-1981 והתקנות מכוחו.</p>
+
+      <h3>איזה מידע נאסף</h3>
+      <ul>
+        <li><strong>מידע שנמסר מרצון:</strong> ככל שתפנו אלינו (למשל בדוא"ל), ייאספו הפרטים שתמסרו, כגון שם ואמצעי קשר.</li>
+        <li><strong>מידע נאסף אוטומטית:</strong> בעת הגלישה נאספים נתונים טכניים כגון כתובת IP, סוג דפדפן ומכשיר, דפי צפייה ומשך שהייה, וזאת באמצעות עוגיות וטכנולוגיות דומות.</li>
+      </ul>
+
+      <h3>עוגיות וכלי מעקב</h3>
+      <p>הדף עושה שימוש בעוגיות ובכלי צד שלישי לניתוח תנועה ולפרסום, ובכללם [Google Analytics], [Google Ads / רימרקטינג] ו-[Meta Pixel]. כלים אלה עשויים לאסוף מידע על הגלישה שלכם לצורך מדידה ושיפור הקמפיינים. פירוט נוסף מופיע ב<button type="button" data-modal="modal-cookies" style="background:none;border:0;color:var(--red);text-decoration:underline;cursor:pointer;font:inherit;padding:0">מדיניות העוגיות</button>.</p>
+
+      <h3>למה אנו משתמשים במידע</h3>
+      <ul>
+        <li>תפעול והצגת הדף באופן תקין ומאובטח.</li>
+        <li>ניתוח ביצועים ושיפור חוויית המשתמש.</li>
+        <li>מדידת אפקטיביות של פרסום והצגת מודעות מותאמות (רימרקטינג).</li>
+        <li>מענה לפניות שתשלחו אלינו.</li>
+      </ul>
+
+      <h3>העברת מידע לצדדים שלישיים</h3>
+      <p>איננו מוכרים את המידע שלכם. מידע עשוי להיות מועבר לספקי שירות המסייעים לנו (אירוח, אנליטיקה, פרסום) בכפוף להתחייבותם לשמירת סודיות, וכן לרשויות מוסמכות ככל שנחויב בכך על פי דין. בעת מעבר לאתר PassportCard לצורך רכישה, חלה על ההליך מדיניות הפרטיות של PassportCard, ואנו איננו אחראים לה.</p>
+
+      <h3>אבטחת מידע</h3>
+      <p>אנו נוקטים באמצעים סבירים לאבטחת המידע. עם זאת, לא ניתן להבטיח הגנה מוחלטת מפני חדירה או שימוש לרעה.</p>
+
+      <h3>זכויותיכם</h3>
+      <p>בהתאם לחוק, אתם רשאים לעיין במידע שנאסף אודותיכם, לבקש את תיקונו או מחיקתו, ולהודיע על הסרה מדיוור. לפניות בנושא: <a href="mailto:[email@domain.co.il]">[email@domain.co.il]</a>.</p>
+
+      <h3>שינויים במדיניות</h3>
+      <p>אנו רשאים לעדכן מדיניות זו מעת לעת. הנוסח המעודכן יפורסם בדף זה.</p>
+
+      <p class="updated">עודכן לאחרונה: [DD/MM/YYYY]</p>
+    </div>
+  </div>
+</div>
+
+<!-- Terms -->
+<div class="modal-overlay" id="modal-terms" role="dialog" aria-modal="true" aria-labelledby="modal-terms-title">
+  <div class="modal">
+    <div class="modal-head">
+      <h2 id="modal-terms-title">תנאי שימוש</h2>
+      <button type="button" class="modal-close" aria-label="סגירה">✕</button>
+    </div>
+    <div class="modal-body">
+      <p>השימוש בדף זה כפוף לתנאים שלהלן. גלישה בדף מהווה הסכמה לתנאים אלה. אם אינכם מסכימים – אנא הימנעו משימוש בדף.</p>
+
+      <h3>מהות השירות</h3>
+      <p>הדף מופעל על ידי <strong>[שם החברה / עוסק מורשה]</strong> בתור <strong>שותף שיווקי מורשה</strong> של PassportCard. איננו חברת הביטוח, איננו סוכן הביטוח, ואיננו צד לפוליסה. הדף מפנה לרכישה באתר הרשמי של PassportCard, שם מתבצעת ההתקשרות בפועל.</p>
+
+      <h3>היעדר ייעוץ</h3>
+      <p>המידע בדף הוא כללי ושיווקי בלבד ואינו מהווה ייעוץ ביטוחי, משפטי או אחר, ואין בו כדי להחליף בדיקה של תנאי הפוליסה המלאים. הכיסוי, החריגים והתנאים נקבעים אך ורק בפוליסה של PassportCard.</p>
+
+      <h3>קניין רוחני</h3>
+      <p>העיצוב, הטקסטים והתכנים בדף (למעט סימני המסחר של PassportCard, השייכים לה) מוגנים בזכויות יוצרים ואין להעתיקם ללא רשות.</p>
+
+      <h3>הגבלת אחריות</h3>
+      <p>איננו אחראים לתוכן, לזמינות או לתנאים באתר PassportCard, וכן לכל נזק שייגרם כתוצאה מהסתמכות על המידע בדף. האחריות לרכישה, לפוליסה ולכיסוי היא של PassportCard בלבד.</p>
+
+      <h3>דין וסמכות שיפוט</h3>
+      <p>על תנאים אלה יחולו דיני מדינת ישראל, וסמכות השיפוט הבלעדית נתונה לבתי המשפט המוסמכים במחוז [עיר].</p>
+
+      <h3>יצירת קשר</h3>
+      <p>בשאלות: <a href="mailto:[email@domain.co.il]">[email@domain.co.il]</a> · טלפון [0X-XXX-XXXX].</p>
+
+      <p class="updated">עודכן לאחרונה: [DD/MM/YYYY]</p>
+    </div>
+  </div>
+</div>
+
+<!-- Accessibility statement -->
+<div class="modal-overlay" id="modal-accessibility" role="dialog" aria-modal="true" aria-labelledby="modal-accessibility-title">
+  <div class="modal">
+    <div class="modal-head">
+      <h2 id="modal-accessibility-title">הצהרת נגישות</h2>
+      <button type="button" class="modal-close" aria-label="סגירה">✕</button>
+    </div>
+    <div class="modal-body">
+      <p><strong>[שם החברה / עוסק מורשה]</strong> רואה חשיבות רבה במתן שירות שוויוני לכלל הגולשים, ופועלת להנגשת דף זה כך שיהיה נוח לשימוש גם עבור אנשים עם מוגבלות.</p>
+
+      <h3>רמת הנגישות באתר</h3>
+      <p>הדף הונגש בהתאם לתקנות שוויון זכויות לאנשים עם מוגבלות (התאמות נגישות לשירות), התשע"ג-2013, ולתקן הישראלי ת"י 5568 המבוסס על הנחיות <span dir="ltr">WCAG 2.0</span> ברמה <span dir="ltr">AA</span>.</p>
+
+      <h3>מה בוצע בדף</h3>
+      <ul>
+        <li>מבנה סמנטי ותפקידי אזורים (landmarks), היררכיית כותרות תקינה וקישור "דלג לתוכן".</li>
+        <li>ניווט מלא באמצעות מקלדת וסימון פוקוס ברור.</li>
+        <li>טקסט חלופי/הסתרה מתאימה לאלמנטים גרפיים דקורטיביים.</li>
+        <li>תמיכה בהקראה על ידי קוראי מסך.</li>
+        <li>תפריט נגישות המאפשר הגדלת טקסט, ניגודיות גבוהה, הדגשת קישורים, גופן קריא, עצירת אנימציות וסמן מוגדל.</li>
+        <li>התאמה לצפייה במגוון מכשירים וגדלי מסך.</li>
+      </ul>
+
+      <h3>דפדפנים נתמכים</h3>
+      <p>מומלץ להשתמש בגרסה עדכנית של Chrome, Firefox, Edge או Safari, בשילוב עם תוכנת קורא מסך עדכנית.</p>
+
+      <h3>מגבלות ידועות</h3>
+      <p>ייתכנו רכיבים או תכנים שמקורם בצד שלישי (למשל אתר הרכישה של PassportCard) שאינם בשליטתנו המלאה. אנו פועלים לשיפור מתמיד, ואם נתקלתם בבעיה – נשמח שתעדכנו אותנו.</p>
+
+      <h3>רכז הנגישות</h3>
+      <p>
+        שם: <strong>[שם רכז/ת הנגישות]</strong><br>
+        דוא"ל: <a href="mailto:[accessibility@domain.co.il]">[accessibility@domain.co.il]</a><br>
+        טלפון: <a href="tel:[0500000000]">[0X-XXX-XXXX]</a>
+      </p>
+      <p>בפנייה נשמח שתפרטו את הבעיה, הדף שבו היא הופיעה וסוג הטכנולוגיה המסייעת שבה השתמשתם, כדי שנוכל לטפל במהירות.</p>
+
+      <p class="updated">הצהרת הנגישות עודכנה לאחרונה בתאריך: [DD/MM/YYYY]</p>
+    </div>
+  </div>
+</div>
+
+<!-- Cookies -->
+<div class="modal-overlay" id="modal-cookies" role="dialog" aria-modal="true" aria-labelledby="modal-cookies-title">
+  <div class="modal">
+    <div class="modal-head">
+      <h2 id="modal-cookies-title">מדיניות עוגיות (Cookies)</h2>
+      <button type="button" class="modal-close" aria-label="סגירה">✕</button>
+    </div>
+    <div class="modal-body">
+      <p>עוגיות הן קבצי טקסט קטנים הנשמרים בדפדפן שלכם ומאפשרים לדף לתפקד, למדוד ביצועים ולהתאים פרסום.</p>
+
+      <h3>סוגי העוגיות בדף</h3>
+      <ul>
+        <li><strong>הכרחיות:</strong> נדרשות לתפעול הבסיסי של הדף ולשמירת העדפות (כגון הסכמה לעוגיות). אינן ניתנות לביטול.</li>
+        <li><strong>ביצועים / אנליטיקה:</strong> כגון Google Analytics – עוזרות לנו להבין כיצד נעשה שימוש בדף.</li>
+        <li><strong>שיווק / פרסום:</strong> כגון Google Ads ו-Meta Pixel – משמשות למדידת קמפיינים ולהצגת מודעות מותאמות (רימרקטינג).</li>
+      </ul>
+
+      <h3>ניהול העדפות</h3>
+      <p>בכניסה הראשונה מוצגת הודעת עוגיות ובה תוכלו לאשר את כלל העוגיות או לבחור ב"רק ההכרחי". ניתן לשנות את הבחירה בכל עת דרך הכפתור שלהלן, וכן למחוק עוגיות ישירות מהגדרות הדפדפן.</p>
+      <p><button type="button" id="reopenCookie" style="background:var(--red);color:#fff;border:0;border-radius:999px;padding:.5rem 1.2rem;font-family:'Rubik',sans-serif;font-weight:600;cursor:pointer">שינוי העדפות העוגיות שלי</button></p>
+
+      <p class="updated">עודכן לאחרונה: [DD/MM/YYYY]</p>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Scroll reveal
+  const io = new IntersectionObserver((entries)=>{
+    entries.forEach(e=>{ if(e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target); }});
+  },{threshold:.14});
+  document.querySelectorAll('.rv').forEach((el,i)=>{
+    el.style.transitionDelay = (i%3)*0.08 + 's';
+    io.observe(el);
+  });
+
+  /* ---------- Safe storage helpers ---------- */
+  const store = {
+    get(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } },
+    set(k,v){ try{ localStorage.setItem(k,v); }catch(e){} },
+  };
+
+  /* ---------- Accessible modals ---------- */
+  let lastFocused = null;
+  function openModal(id){
+    const m = document.getElementById(id);
+    if(!m) return;
+    lastFocused = document.activeElement;
+    m.classList.add('open');
+    document.body.style.overflow = 'hidden';
+    const focusable = m.querySelectorAll('a[href],button,[tabindex]:not([tabindex="-1"])');
+    (m.querySelector('.modal-close') || focusable[0])?.focus();
+    m._focusable = focusable;
+  }
+  function closeModal(m){
+    if(!m) return;
+    m.classList.remove('open');
+    if(!document.querySelector('.modal-overlay.open')) document.body.style.overflow = '';
+    if(lastFocused) lastFocused.focus();
+  }
+  document.querySelectorAll('[data-modal]').forEach(btn=>{
+    btn.addEventListener('click', ()=> openModal(btn.getAttribute('data-modal')));
+  });
+  document.querySelectorAll('.modal-overlay').forEach(ov=>{
+    ov.querySelector('.modal-close')?.addEventListener('click', ()=>closeModal(ov));
+    ov.addEventListener('click', e=>{ if(e.target === ov) closeModal(ov); });
+    ov.addEventListener('keydown', e=>{
+      if(e.key === 'Escape') closeModal(ov);
+      if(e.key === 'Tab' && ov._focusable && ov._focusable.length){
+        const f = ov._focusable, first = f[0], last = f[f.length-1];
+        if(e.shiftKey && document.activeElement === first){ e.preventDefault(); last.focus(); }
+        else if(!e.shiftKey && document.activeElement === last){ e.preventDefault(); first.focus(); }
+      }
+    });
+  });
+
+  /* ---------- Cookie consent ---------- */
+  const banner = document.getElementById('cookieBanner');
+  function showBanner(){ banner.classList.add('show'); }
+  function hideBanner(){ banner.classList.remove('show'); }
+  function loadTracking(){
+    // מקום להזרקת סקריפטים של מעקב (Google Analytics / Google Ads / Meta Pixel)
+    // לאחר קבלת הסכמת המשתמש. הוסיפו כאן את קטעי הקוד שלכם.
+  }
+  if(store.get('cookieConsent') === 'all'){ loadTracking(); }
+  else if(!store.get('cookieConsent')){ showBanner(); }
+  document.getElementById('cookieAccept')?.addEventListener('click', ()=>{
+    store.set('cookieConsent','all'); hideBanner(); loadTracking();
+  });
+  document.getElementById('cookieReject')?.addEventListener('click', ()=>{
+    store.set('cookieConsent','essential'); hideBanner();
+  });
+  document.getElementById('reopenCookie')?.addEventListener('click', ()=>{
+    closeModal(document.getElementById('modal-cookies'));
+    showBanner();
+  });
+
+  /* ---------- Accessibility widget ---------- */
+  const html = document.documentElement;
+  const a11yToggle = document.getElementById('a11yToggle');
+  const a11yPanel  = document.getElementById('a11yPanel');
+  const fontLevels = ['','a11y-font-1','a11y-font-2','a11y-font-3'];
+  let a11yState = {};
+  try{ a11yState = JSON.parse(store.get('a11yState') || '{}'); }catch(e){ a11yState = {}; }
+
+  function applyA11y(){
+    // font (numeric 0..3)
+    fontLevels.forEach(c=>{ if(c) html.classList.remove(c); });
+    const fl = a11yState.font || 0;
+    if(fl) html.classList.add(fontLevels[fl]);
+    // toggles
+    html.classList.toggle('a11y-contrast', !!a11yState.contrast);
+    html.classList.toggle('a11y-links', !!a11yState.links);
+    html.classList.toggle('a11y-readable', !!a11yState.readable);
+    html.classList.toggle('a11y-stop', !!a11yState.stop);
+    html.classList.toggle('a11y-bigcursor', !!a11yState.bigcursor);
+    // reflect pressed state
+    document.querySelectorAll('[data-a11y]').forEach(b=>{
+      const key = b.getAttribute('data-a11y');
+      const on = key === 'font' ? !!a11yState.font : !!a11yState[key];
+      b.setAttribute('aria-pressed', on ? 'true' : 'false');
+    });
+    store.set('a11yState', JSON.stringify(a11yState));
+  }
+  applyA11y();
+
+  a11yToggle.addEventListener('click', ()=>{
+    const open = a11yPanel.classList.toggle('open');
+    a11yToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+    if(open) a11yPanel.querySelector('button')?.focus();
+  });
+  document.addEventListener('click', e=>{
+    if(a11yPanel.classList.contains('open') && !a11yPanel.contains(e.target) && e.target !== a11yToggle && !a11yToggle.contains(e.target)){
+      a11yPanel.classList.remove('open');
+      a11yToggle.setAttribute('aria-expanded','false');
+    }
+  });
+  a11yPanel.addEventListener('keydown', e=>{ if(e.key === 'Escape'){ a11yPanel.classList.remove('open'); a11yToggle.setAttribute('aria-expanded','false'); a11yToggle.focus(); } });
+
+  document.querySelectorAll('[data-a11y]').forEach(b=>{
+    b.addEventListener('click', ()=>{
+      const key = b.getAttribute('data-a11y');
+      if(key === 'font'){ a11yState.font = ((a11yState.font || 0) + 1) % 4; }
+      else { a11yState[key] = !a11yState[key]; }
+      applyA11y();
+    });
+  });
+  document.getElementById('a11yReset').addEventListener('click', ()=>{
+    a11yState = {}; applyA11y();
+  });
+</script>
+</body>
+</html>
